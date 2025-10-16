@@ -1,7 +1,7 @@
 "use client";
-import { createWeb3Modal } from '@web3modal/wagmi';
-import { WagmiConfig, configureChains, createConfig } from 'wagmi';
+import { configureChains, createConfig, WagmiConfig } from 'wagmi';
 import { bscTestnet } from 'wagmi/chains';
+import { publicProvider } from 'wagmi/providers/public';
 
 const chains = [bscTestnet];
 const projectId = process.env.WALLET_CONNECT_PROJECT_ID || 'your_walletconnect_project_id';
