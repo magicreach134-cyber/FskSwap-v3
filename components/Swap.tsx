@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ethers } from 'ethers';
-import { useSigner } from 'wagmi'; // Corrected import for wagmi@2.x
+import { useSigner } from 'wagmi'; // Should work with wagmi@^2.12.0
 
 const PANCAKE_ROUTER = '0xD99D1c07F094a657180b141Bbdbd60aE03883f07';
 const FSK_ADDRESS = '0xYourFSKAddress'; // Update with deployed address
