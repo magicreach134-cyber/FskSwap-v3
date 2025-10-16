@@ -12,7 +12,7 @@
     "@tanstack/react-query": "^5.90.3",
     "@web3modal/react": "^2.6.2",
     "@web3modal/wagmi": "^5.1.11",
-    "@react-native-async-storage/async-storage": "^1.23.1",
+    "@react-native-async-storage/async-storage-web": "^1.0.3",
     "axios": "^1.12.2",
     "ethers": "^6.15.0",
     "framer-motion": "^12.23.24",
