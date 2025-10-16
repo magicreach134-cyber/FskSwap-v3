@@ -24,7 +24,7 @@ export default function About() {
             <li><strong>Presale (Public & Seed Sale):</strong> 55%</li>
             <li><strong>Liquidity Pool (LP):</strong> 15% (70% burned, 30% locked for 24 months)</li>
             <li><strong>Ecosystem Development:</strong> 20%</li>
-            <li><li><strong>Team:</strong> 5% (Vested for 24 months with 12-month cliff and 3-month linear distribution)</li>
+            <li><strong>Team:</strong> 5% (Vested for 24 months with 12-month cliff and 3-month linear distribution)</li>
             <li><strong>Community Airdrop:</strong> 5%</li>
             <li><strong>Tax:</strong> 0% (Zero Tax Policy)</li>
             <li><strong>Dev Allocation:</strong> None</li>
