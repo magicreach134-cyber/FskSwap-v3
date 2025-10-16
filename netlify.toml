@@ -1,9 +1,7 @@
 [build]
   command = "CI= npm install --legacy-peer-deps && npm run build"
   publish = ".next"
-
-[dev]
-  command = "npm run dev"
+  functions = ".netlify/functions-internal"
 
 [[redirects]]
   from = "/*"
