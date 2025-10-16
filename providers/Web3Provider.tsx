@@ -13,9 +13,8 @@ const config = createConfig({
     [mainnet.id]: http(),
     [bscTestnet.id]: http(),
   },
+  autoConnect: true, // ✅ moved inside the config
 });
-
-config.autoConnect = true;
 
 const queryClient = new QueryClient();
 
