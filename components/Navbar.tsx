@@ -1,55 +1,39 @@
 "use client";
-import Link from 'next/link';
-import Image from 'next/image';
-import { motion } from 'framer-motion';
-import { useState } from 'react';
-import ThemeToggle from './ThemeToggle';
+
+import Link from "next/link";
+import React from "react";
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
-    <motion.nav
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="bg-gray-800 text-white p-4 fixed w-full top-0 z-10 shadow-lg"
-    >
-      <div className="container mx-auto flex justify-between items-center">
-        <div className="flex flex-col items-start space-y-2">
-          <Link href="/">
-            <Image src="/logo.png" alt="FskSwap - Powered by Fressking Logo" width={60} height={60} className="object-contain transition-transform hover:scale-105" priority />
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-3">
+          {/* logo from public folder */}
+          <img
+            src="/IMG_20251012_125052.png"
+            alt="FskSwap"
+            className="h-10 w-auto rounded-md object-contain
+                       filter brightness-100 dark:brightness-75"
+            onError={(e) => {
+              // keep this small inline handler to optionally hide broken image
+              // @ts-ignore
+              e.currentTarget.style.display = "none";
+            }}
+          />
+          <span className="font-semibold text-lg text-gray-900 dark:text-yellow-400">
+            FskSwap
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-4">
+          <Link href="/about" className="text-sm text-gray-700 dark:text-gray-200 hover:underline">
+            About
           </Link>
-          <span className="text-lg font-bold tracking-tight text-yellow-400">FskSwap - Powered by Fressking</span>
+          <Link href="/dashboard" className="text-sm text-yellow-500 hover:underline">
+            Dashboard
+          </Link>
         </div>
-        <ul className="hidden md:flex space-x-6 items-center">
-          <li><Link href="/" className="hover:text-yellow-400 transition">Home</Link></li>
-          <li><Link href="/dashboard" className="hover:text-yellow-400 transition">Dashboard</Link></li>
-          <li><Link href="/swap" className="hover:text-yellow-400 transition">Swap</Link></li>
-          <li><Link href="/chart" className="hover:text-yellow-400 transition">Chart</Link></li>
-          <li><Link href="/about" className="hover:text-yellow-400 transition">About</Link></li>
-          <li><Link href="/contact" className="hover:text-yellow-400 transition">Contact</Link></li>
-          <li><Link href="/admin" className="hover:text-yellow-400 transition">Admin</Link></li>
-          <li><ThemeToggle /></li>
-        </ul>
-        <button className="md:hidden" onClick={() => setIsOpen(!isOpen)}>
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-          </svg>
-        </button>
       </div>
-      {isOpen && (
-        <ul className="md:hidden flex flex-col space-y-2 mt-4 bg-gray-700 p-4 rounded-lg shadow-md">
-          <li><Link href="/" className="block py-2 hover:text-yellow-400">Home</Link></li>
-          <li><Link href="/dashboard" className="block py-2 hover:text-yellow-400">Dashboard</Link></li>
-          <li><Link href="/swap" className="block py-2 hover:text-yellow-400">Swap</Link></li>
-          <li><Link href="/chart" className="block py-2 hover:text-yellow-400">Chart</Link></li>
-          <li><Link href="/about" className="block py-2 hover:text-yellow-400">About</Link></li>
-          <li><Link href="/contact" className="block py-2 hover:text-yellow-400">Contact</Link></li>
-          <li><Link href="/admin" className="block py-2 hover:text-yellow-400">Admin</Link></li>
-          <li><ThemeToggle /></li>
-        </ul>
-      )}
-    </motion.nav>
+    </nav>
   );
 }
