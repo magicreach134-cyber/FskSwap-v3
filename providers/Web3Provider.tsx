@@ -13,12 +13,18 @@ const config = createConfig({
     [mainnet.id]: http(),
     [bscTestnet.id]: http(),
   },
-  autoConnect: true, // ✅ moved inside the config
 });
+
+// ✅ Set autoConnect after config creation
+config.autoConnect = true;
 
 const queryClient = new QueryClient();
 
-export default function Web3Provider({ children }: { children: React.ReactNode }) {
+export default function Web3Provider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
