@@ -1,4 +1,4 @@
-import { Web3Provider } from '../providers/Web3Provider';
+import Web3Provider from '../providers/Web3Provider';
 import '../styles/globals.css';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
