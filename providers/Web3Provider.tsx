@@ -1,31 +1,30 @@
-// providers/Web3Provider.tsx
-// Replace the existing file contents with this exact code.
+"use client";
 
 import React from "react";
-import { createConfig, WagmiConfig, http } from "wagmi";
+import { WagmiProvider, createConfig, http } from "wagmi";
+import { mainnet, bscTestnet } from "wagmi/chains";
+import { injected } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { mainnet, bsc } from "wagmi/chains";
-
-const queryClient = new QueryClient();
-
-/**
- * create a wagmi config using http transports for each chain.
- * This avoids importing from wagmi/providers/public which some wagmi versions don't export.
- */
-import { createConfig, http } from 'wagmi';
-import { mainnet } from 'wagmi/chains';
-import { injected } from 'wagmi/connectors';
 
 const config = createConfig({
-  chains: [mainnet],
+  chains: [mainnet, bscTestnet],
   connectors: [injected()],
   transports: {
     [mainnet.id]: http(),
+    [bscTestnet.id]: http(),
   },
 });
 
-// Enable auto connect AFTER creating config
 config.autoConnect = true;
 
-export default config;
+const queryClient = new QueryClient();
 
+export default function Web3Provider({ children }: { children: React.ReactNode }) {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+}
