@@ -30,5 +30,9 @@
     "autoprefixer": "^10.0.0",
     "postcss": "^8.0.0",
     "typescript": "^5.0.0"
-  }
+  },
+  "resolutions": {
+  "@react-native-async-storage/async-storage-web": "npm:@react-native-async-storage/async-storage@1.24.0"
 }
+}
+
