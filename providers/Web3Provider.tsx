@@ -1,6 +1,6 @@
 import { configureChains, createConfig, WagmiConfig } from 'wagmi';
 import { bscTestnet } from 'wagmi/chains';
-import { publicProvider } from 'wagmi/providers/public'; // Corrected path
+import { publicProvider } from 'wagmi/providers/public'; // Corrected to match wagmi exports
 
 const { chains, publicClient } = configureChains([bscTestnet], [publicProvider()]);
 const config = createConfig({ publicClient });
