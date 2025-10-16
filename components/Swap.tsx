@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from 'react';
 import { ethers } from 'ethers';
 import { useSigner } from 'wagmi'; // Corrected import for wagmi@2.x
