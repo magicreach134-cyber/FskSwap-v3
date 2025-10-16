@@ -1,11 +1,13 @@
 [build]
- command = "CI= npm install --legacy-peer-deps && npm run build" 
+  command = "CI= npm install --legacy-peer-deps && npm run build"
+  publish = ".next"
+  functions = "functions"
 
 [dev]
   command = "npm run dev"
 
 [[redirects]]
   from = "/*"
-  to = "/.netlify/functions/:splat"
+  to = "/.netlify/functions/__netlify-server-handler"
   status = 200
   force = true
