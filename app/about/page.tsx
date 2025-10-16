@@ -6,7 +6,6 @@ export default function About() {
       <Navbar />
       <div className="container mx-auto p-6">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-yellow-400 mb-6">About Fressking (FSK)</h1>
-
         <section className="mb-6">
           <p className="text-lg text-gray-700 dark:text-gray-300">
             At Fressking (FSK), we’re building more than a DeFi ecosystem — we’re laying the foundation for a complete financial and technological evolution that scales beyond decentralized finance into Centralized Exchange (CEX) and Blockchain infrastructure.
@@ -25,11 +24,11 @@ export default function About() {
             <li><strong>Presale (Public & Seed Sale):</strong> 55%</li>
             <li><strong>Liquidity Pool (LP):</strong> 15% (70% burned, 30% locked for 24 months)</li>
             <li><strong>Ecosystem Development:</strong> 20%</li>
-            <li><strong>Team:</strong> 5% (Vested for 24 months with 12-month cliff and 3-month linear distribution)</li>
+            <li><li><strong>Team:</strong> 5% (Vested for 24 months with 12-month cliff and 3-month linear distribution)</li>
             <li><strong>Community Airdrop:</strong> 5%</li>
             <li><strong>Tax:</strong> 0% (Zero Tax Policy)</li>
             <li><strong>Dev Allocation:</strong> None</li>
-            <li><strong>Contract:</strong> Revoked for full transparency
+            <li><strong>Contract:</strong> Revoked for full transparency</li>
           </ul>
         </section>
 
