@@ -13,10 +13,8 @@ const config = createConfig({
     [mainnet.id]: http(),
     [bscTestnet.id]: http(),
   },
+  ssr: true, // ✅ prevents hydration issues on Next.js
 });
-
-// ✅ Set autoConnect after config creation
-config.autoConnect = true;
 
 const queryClient = new QueryClient();
 
