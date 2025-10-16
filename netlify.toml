@@ -1,5 +1,5 @@
 [build]
-  command = "CI= npm install --legacy-peer-deps && npm run build"
+  command = "CI= npm install --force && npm run build"
   publish = ".next"
   functions = "functions"
 
