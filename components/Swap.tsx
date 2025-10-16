@@ -22,8 +22,7 @@ export default function Swap() {
 
     try {
       // Get ethers.js signer from wagmi wallet client
-      const provider = new ethers.BrowserProvider(walletClient.transport);
-      const signer = await provider.getSigner();
+      const provider = new ethers.BrowserProvider(window.ethereum as any);
 
       // Example: here’s where you’d call your router contract
       // const router = new ethers.Contract(PANCAKE_ROUTER, routerAbi, signer);
