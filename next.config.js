@@ -1,12 +1,10 @@
-// next.config.js
-
-if (typeof window === "undefined") {
-  require("./shims/asyncStorage");
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
+  images: {
+    unoptimized: true,
+  },
   reactStrictMode: true,
 };
 
-module.exports = nextConfig;
+export default nextConfig;
