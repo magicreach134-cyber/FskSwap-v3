@@ -1,0 +1,48 @@
+import { useState, useEffect } from "react";
+import { ethers } from "ethers";
+import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../utils/constants";
+
+export const usePresales = (signer, userAccount) => {
+  const [presales, setPresales] = useState([]);
+
+  useEffect(() => {
+    if (!signer) return;
+
+    const fetchPresales = async () => {
+      const factory = new ethers.Contract(launchpadFactoryAddress, FSKLaunchpadFactoryABI, signer);
+      const addresses = await factory.getPresales();
+      const details = await Promise.all(
+        addresses.map(async (addr) => {
+          const presaleContract = new ethers.Contract(addr, [
+            "function token() view returns (address)",
+            "function softCap() view returns (uint256)",
+            "function hardCap() view returns (uint256)",
+            "function totalRaised() view returns (uint256)",
+            "function startTime() view returns (uint256)",
+            "function endTime() view returns (uint256)",
+            "function contributions(address) view returns (uint256)",
+            "function finalized() view returns (bool)",
+            "function contribute() payable",
+            "function claim()"
+          ], signer);
+
+          const token = await presaleContract.token();
+          const softCap = await presaleContract.softCap();
+          const hardCap = await presaleContract.hardCap();
+          const totalRaised = await presaleContract.totalRaised();
+          const startTime = await presaleContract.startTime();
+          const endTime = await presaleContract.endTime();
+          const userContribution = await presaleContract.contributions(userAccount);
+          const finalized = await presaleContract.finalized();
+
+          return { addr, token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized, contract: presaleContract };
+        })
+      );
+      setPresales(details);
+    };
+
+    fetchPresales();
+  }, [signer, userAccount]);
+
+  return { presales, setPresales };
+};
