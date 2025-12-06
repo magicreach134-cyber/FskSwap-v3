@@ -1,0 +1,37 @@
+import { useState, useEffect } from "react";
+import { ethers } from "ethers";
+
+export const useWallet = () => {
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [account, setAccount] = useState(null);
+
+  useEffect(() => {
+    if (window.ethereum) {
+      const prov = new ethers.providers.Web3Provider(window.ethereum);
+      setProvider(prov);
+      const sign = prov.getSigner();
+      setSigner(sign);
+
+      sign.getAddress()
+        .then(setAccount)
+        .catch(() => setAccount(null));
+
+      window.ethereum.on("accountsChanged", (accounts) => {
+        setAccount(accounts[0] || null);
+      });
+
+      window.ethereum.on("chainChanged", () => {
+        window.location.reload();
+      });
+    }
+  }, []);
+
+  const connectWallet = async () => {
+    if (!window.ethereum) return alert("Install MetaMask");
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    setAccount(accounts[0]);
+  };
+
+  return { provider, signer, account, connectWallet };
+};
