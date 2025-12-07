@@ -1,116 +1,159 @@
+// src/pages/Swap.jsx
 import { useState, useEffect } from "react";
+import { ethers } from "ethers";
 import TokenSelect from "../components/TokenSelect";
 import WalletConnectButton from "../components/WalletConnectButton";
 import ThemeSwitch from "../components/ThemeSwitch";
-import { ethers } from "ethers";
 import "../style/swap-form.css";
-import { IFSKRouterABI, routerAddress } from "../utils/constants";
+import { 
+  FSKFactoryABI, FSKRouterABI, FSKFactoryAddress, FSKRouterAddress 
+} from "../utils/constants";
 
 const Swap = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [tokenA, setTokenA] = useState(null);
-  const [tokenB, setTokenB] = useState(null);
-  const [amountA, setAmountA] = useState("");
-  const [estimated, setEstimated] = useState("0");
-  const [slippage, setSlippage] = useState(0.5);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [deadline] = useState(Math.floor(Date.now() / 1000) + 1800);
+  const [fromToken, setFromToken] = useState(null);
+  const [toToken, setToToken] = useState(null);
+  const [amountIn, setAmountIn] = useState("");
+  const [amountOut, setAmountOut] = useState("");
+  const [slippage, setSlippage] = useState(0.5); // default 0.5%
+  const [userAddress, setUserAddress] = useState("");
 
+  // Initialize provider and signer
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
       setProvider(tempProvider);
-      setSigner(tempProvider.getSigner());
+      const tempSigner = tempProvider.getSigner();
+      setSigner(tempSigner);
+      tempSigner.getAddress().then(setUserAddress);
     }
   }, []);
 
+  // Estimate output
   useEffect(() => {
-    if (!signer || !amountA || !tokenA || !tokenB) return;
-
     const estimate = async () => {
+      if (!fromToken || !toToken || !amountIn || !signer) return;
       try {
-        const router = new ethers.Contract(routerAddress, IFSKRouterABI, signer);
-        const path = [tokenA.address, tokenB.address];
-        const amounts = await router.getAmountsOut(
-          ethers.utils.parseUnits(amountA, tokenA.decimals),
-          path
+        const router = new ethers.Contract(FSKRouterAddress, FSKRouterABI, signer);
+        const amountsOut = await router.getAmountsOut(
+          ethers.utils.parseUnits(amountIn, fromToken.decimals),
+          [fromToken.address, toToken.address]
         );
-        setEstimated(ethers.utils.formatUnits(amounts[1], tokenB.decimals));
+        setAmountOut(ethers.utils.formatUnits(amountsOut[1], toToken.decimals));
       } catch (err) {
         console.error(err);
+        setAmountOut("0");
       }
     };
     estimate();
-  }, [amountA, tokenA, tokenB, signer]);
+  }, [fromToken, toToken, amountIn, signer]);
 
   const handleSwap = async () => {
-    if (!signer) return alert("Connect wallet first");
+    if (!fromToken || !toToken || !amountIn || !signer) return alert("Complete swap details");
     try {
-      const router = new ethers.Contract(routerAddress, IFSKRouterABI, signer);
-      const path = [tokenA.address, tokenB.address];
-      const amountIn = ethers.utils.parseUnits(amountA, tokenA.decimals);
-      const minOut = ethers.utils.parseUnits(
-        (parseFloat(estimated) * (1 - slippage / 100)).toString(),
-        tokenB.decimals
+      const router = new ethers.Contract(FSKRouterAddress, FSKRouterABI, signer);
+      const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 min
+      const amountInWei = ethers.utils.parseUnits(amountIn, fromToken.decimals);
+      const amountsOutMin = ethers.utils.parseUnits(
+        (parseFloat(amountOut) * (1 - slippage / 100)).toFixed(toToken.decimals),
+        toToken.decimals
       );
-      const tx = await router.swapExactTokensForTokens(
-        amountIn,
-        minOut,
-        path,
-        await signer.getAddress(),
-        deadline
-      );
+
+      let tx;
+      if (fromToken.symbol === "BNB") {
+        tx = await router.swapExactETHForTokens(
+          amountsOutMin,
+          [fromToken.address, toToken.address],
+          userAddress,
+          deadline,
+          { value: amountInWei }
+        );
+      } else if (toToken.symbol === "BNB") {
+        const tokenContract = new ethers.Contract(fromToken.address, [
+          "function approve(address spender, uint256 amount) public returns (bool)"
+        ], signer);
+        await tokenContract.approve(FSKRouterAddress, amountInWei);
+        tx = await router.swapExactTokensForETH(
+          amountInWei,
+          amountsOutMin,
+          [fromToken.address, toToken.address],
+          userAddress,
+          deadline
+        );
+      } else {
+        const tokenContract = new ethers.Contract(fromToken.address, [
+          "function approve(address spender, uint256 amount) public returns (bool)"
+        ], signer);
+        await tokenContract.approve(FSKRouterAddress, amountInWei);
+        tx = await router.swapExactTokensForTokens(
+          amountInWei,
+          amountsOutMin,
+          [fromToken.address, toToken.address],
+          userAddress,
+          deadline
+        );
+      }
       await tx.wait();
-      alert("Swap completed!");
-      setAmountA("");
+      alert("Swap successful!");
+      setAmountIn("");
+      setAmountOut("");
     } catch (err) {
       console.error(err);
       alert("Swap failed: " + err.message);
     }
   };
 
-  const handleSwitch = () => {
-    const temp = tokenA;
-    setTokenA(tokenB);
-    setTokenB(temp);
-  };
-
   return (
     <div className="swap-page">
-      <header>
-        <img src="/assets/logo.svg" alt="FSKSwap" />
+      <header className="swap-header">
+        <div className="logo">
+          <img src="/assets/logo.svg" alt="FSKSwap" />
+          <span>FSKSwap</span>
+        </div>
         <nav>
           <a href="/swap">Swap</a>
           <a href="/launchpad">Launchpad</a>
           <a href="/staking">Staking</a>
           <a href="/flashswap">FlashSwap</a>
         </nav>
-        <WalletConnectButton provider={provider} setSigner={setSigner} />
-        <ThemeSwitch />
+        <div className="header-right">
+          <WalletConnectButton provider={provider} setSigner={setSigner} />
+          <ThemeSwitch />
+        </div>
       </header>
 
-      <main>
+      <main className="swap-container">
+        <h2>Swap Tokens</h2>
         <div className="swap-form">
-          <h2>Swap Tokens</h2>
-          <TokenSelect selectedToken={tokenA} setToken={setTokenA} />
-          <input type="number" placeholder="Amount" value={amountA} onChange={(e) => setAmountA(e.target.value)} />
-
-          <button onClick={handleSwitch}>↕</button>
-
-          <TokenSelect selectedToken={tokenB} setToken={setTokenB} />
-          <input type="text" placeholder={estimated} disabled />
-
-          <input type="number" value={slippage} onChange={(e) => setSlippage(parseFloat(e.target.value))} min="0" max="10" step="0.1" />
-          <button onClick={() => setShowConfirm(true)}>Confirm Swap</button>
-
-          {showConfirm && (
-            <div className="modal">
-              <p>Swap {amountA} {tokenA?.symbol} → ~{estimated} {tokenB?.symbol}</p>
-              <button onClick={() => { handleSwap(); setShowConfirm(false); }}>Confirm</button>
-              <button onClick={() => setShowConfirm(false)}>Cancel</button>
-            </div>
-          )}
+          <TokenSelect 
+            label="From" 
+            selected={fromToken} 
+            setSelected={setFromToken} 
+            highlightFSK="yellow" 
+            highlightFUSDT="red"
+          />
+          <input
+            type="number"
+            placeholder="Amount"
+            value={amountIn}
+            onChange={(e) => setAmountIn(e.target.value)}
+          />
+          <TokenSelect 
+            label="To" 
+            selected={toToken} 
+            setSelected={setToToken} 
+            highlightFSK="yellow" 
+            highlightFUSDT="red"
+          />
+          <p>Estimated: {amountOut}</p>
+          <input
+            type="number"
+            placeholder="Slippage %"
+            value={slippage}
+            onChange={(e) => setSlippage(e.target.value)}
+          />
+          <button onClick={handleSwap}>Swap</button>
         </div>
       </main>
     </div>
