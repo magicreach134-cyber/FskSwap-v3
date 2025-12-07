@@ -1,4 +1,3 @@
-// src/pages/_app.jsx
 import "../style/theme.css";
 import "../style/swap-form.css";
 import "../style/launchpad.css";
@@ -7,10 +6,15 @@ import "../style/staking.css";
 import "../style/token-select.css";
 
 import AppRouter from "../app/router";
+import { ThemeProvider } from "../context/ThemeContext";
 
 function MyApp({ Component, pageProps }) {
-  // Component and pageProps are unused because AppRouter handles routing
-  return <AppRouter />;
+  // Wrap the entire app with ThemeProvider
+  return (
+    <ThemeProvider>
+      <AppRouter />
+    </ThemeProvider>
+  );
 }
 
 export default MyApp;
