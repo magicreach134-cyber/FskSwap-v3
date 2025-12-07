@@ -1,4 +1,5 @@
-// src/hooks/usePresaleSearch.jsx
+"use client";
+
 import { useState, useMemo } from "react";
 
 const usePresaleSearch = (presales) => {
