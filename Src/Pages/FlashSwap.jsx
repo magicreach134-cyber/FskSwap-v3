@@ -1,67 +1,76 @@
+// src/pages/FlashSwap.jsx
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../components/WalletConnectButton";
 import ThemeSwitch from "../components/ThemeSwitch";
 import "../style/flashswap.css";
-import { flashSwapAddress, FlashSwapABI, TokenList } from "../utils/constants";
+import { flashswapAddress, FlashSwapABI, tokenABIs } from "../utils/constants";
 
 const FlashSwap = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [tokenBorrow, setTokenBorrow] = useState(TokenList[0]);
-  const [tokenPay, setTokenPay] = useState(TokenList[1]);
-  const [amount, setAmount] = useState("");
-  const [profitEstimate, setProfitEstimate] = useState("0");
+  const [userAddress, setUserAddress] = useState("");
+  const [inputToken, setInputToken] = useState("FSK");
+  const [outputToken, setOutputToken] = useState("FUSDT");
+  const [amountIn, setAmountIn] = useState("");
+  const [estimatedProfit, setEstimatedProfit] = useState("0");
 
+  // Initialize provider and signer
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
       setProvider(tempProvider);
-      setSigner(tempProvider.getSigner());
+      const tempSigner = tempProvider.getSigner();
+      setSigner(tempSigner);
+      tempSigner.getAddress().then(setUserAddress);
     }
   }, []);
 
+  // Estimate profit on input change
   useEffect(() => {
-    const estimateProfit = async () => {
-      if (!signer || !amount || isNaN(amount)) return;
+    const estimate = async () => {
+      if (!signer || !amountIn || parseFloat(amountIn) <= 0) return;
       try {
-        const flashSwap = new ethers.Contract(flashSwapAddress, FlashSwapABI, signer);
-        const profit = await flashSwap.estimateProfit(
-          tokenBorrow.address,
-          tokenPay.address,
-          ethers.utils.parseUnits(amount, tokenBorrow.decimals)
+        const flashSwapContract = new ethers.Contract(flashswapAddress, FlashSwapABI, signer);
+        const amountWei = ethers.utils.parseEther(amountIn);
+
+        // Assuming the contract has an estimateProfit function
+        const profit = await flashSwapContract.estimateProfit(
+          tokenABIs[inputToken].address,
+          tokenABIs[outputToken].address,
+          amountWei
         );
-        setProfitEstimate(ethers.utils.formatUnits(profit, tokenPay.decimals));
+        setEstimatedProfit(ethers.utils.formatEther(profit));
       } catch (err) {
-        console.error(err);
-        setProfitEstimate("0");
+        console.error("Profit estimation failed:", err);
+        setEstimatedProfit("0");
       }
     };
-    estimateProfit();
-  }, [amount, tokenBorrow, tokenPay, signer]);
+    estimate();
+  }, [amountIn, inputToken, outputToken, signer]);
 
   const handleFlashSwap = async () => {
-    if (!signer) return alert("Connect wallet first");
+    if (!amountIn || parseFloat(amountIn) <= 0) return alert("Enter a valid amount");
+
     try {
-      const flashSwap = new ethers.Contract(flashSwapAddress, FlashSwapABI, signer);
-      const tx = await flashSwap.executeFlashSwap(
-        tokenBorrow.address,
-        tokenPay.address,
-        ethers.utils.parseUnits(amount, tokenBorrow.decimals)
+      const flashSwapContract = new ethers.Contract(flashswapAddress, FlashSwapABI, signer);
+      const amountWei = ethers.utils.parseEther(amountIn);
+
+      // Execute flashswap
+      const tx = await flashSwapContract.executeFlashSwap(
+        tokenABIs[inputToken].address,
+        tokenABIs[outputToken].address,
+        amountWei
       );
+
       await tx.wait();
       alert("FlashSwap executed successfully!");
-      setAmount("");
+      setAmountIn("");
+      setEstimatedProfit("0");
     } catch (err) {
       console.error(err);
       alert("FlashSwap failed: " + err.message);
     }
-  };
-
-  const handleSwitch = () => {
-    const temp = tokenBorrow;
-    setTokenBorrow(tokenPay);
-    setTokenPay(temp);
   };
 
   return (
@@ -85,25 +94,41 @@ const FlashSwap = () => {
 
       <main className="flashswap-container">
         <h2>FlashSwap</h2>
+
         <div className="flashswap-form">
-          <div className="input-group">
-            <label>Borrow Token</label>
-            <select value={tokenBorrow.symbol} onChange={e => setTokenBorrow(TokenList.find(t => t.symbol === e.target.value))}>
-              {TokenList.map(t => <option key={t.symbol}>{t.symbol}</option>)}
-            </select>
-            <input type="number" placeholder="Amount" value={amount} onChange={e => setAmount(e.target.value)} />
-          </div>
-
-          <button className="switch-btn" onClick={handleSwitch}>↕</button>
-
-          <div className="input-group">
-            <label>Pay Token</label>
-            <select value={tokenPay.symbol} onChange={e => setTokenPay(TokenList.find(t => t.symbol === e.target.value))}>
-              {TokenList.map(t => <option key={t.symbol}>{t.symbol}</option>)}
+          <div className="form-row">
+            <label>Input Token:</label>
+            <select value={inputToken} onChange={(e) => setInputToken(e.target.value)}>
+              {Object.keys(tokenABIs).map((token) => (
+                <option key={token} value={token}>{token}</option>
+              ))}
             </select>
           </div>
 
-          <p>Estimated Profit: {profitEstimate} {tokenPay.symbol}</p>
+          <div className="form-row">
+            <label>Output Token:</label>
+            <select value={outputToken} onChange={(e) => setOutputToken(e.target.value)}>
+              {Object.keys(tokenABIs).map((token) => (
+                <option key={token} value={token}>{token}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-row">
+            <label>Amount:</label>
+            <input
+              type="number"
+              placeholder="Amount in input token"
+              value={amountIn}
+              onChange={(e) => setAmountIn(e.target.value)}
+            />
+          </div>
+
+          <div className="profit-row">
+            <strong>Estimated Profit:</strong>{" "}
+            <span>{estimatedProfit} {outputToken}</span>
+          </div>
+
           <button onClick={handleFlashSwap}>Execute FlashSwap</button>
         </div>
       </main>
