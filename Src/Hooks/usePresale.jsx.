@@ -1,4 +1,5 @@
-// src/hooks/usePresales.jsx
+"use client";
+
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../utils/constants";
@@ -35,17 +36,25 @@ const usePresales = (provider, userAddress) => {
               "function finalized() view returns (bool)",
             ], signer);
 
-            const [token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized] = 
-              await Promise.all([
-                presaleContract.token(),
-                presaleContract.softCap(),
-                presaleContract.hardCap(),
-                presaleContract.totalRaised(),
-                presaleContract.startTime(),
-                presaleContract.endTime(),
-                presaleContract.contributions(userAddress),
-                presaleContract.finalized(),
-              ]);
+            const [
+              token,
+              softCap,
+              hardCap,
+              totalRaised,
+              startTime,
+              endTime,
+              userContribution,
+              finalized
+            ] = await Promise.all([
+              presaleContract.token(),
+              presaleContract.softCap(),
+              presaleContract.hardCap(),
+              presaleContract.totalRaised(),
+              presaleContract.startTime(),
+              presaleContract.endTime(),
+              presaleContract.contributions(userAddress),
+              presaleContract.finalized(),
+            ]);
 
             const now = Math.floor(Date.now() / 1000);
             const status = now < startTime
