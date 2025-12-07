@@ -1,103 +1,63 @@
-// src/pages/Swap.jsx
+"use client";
+
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import TokenSelect from "../components/TokenSelect";
 import WalletConnectButton from "../components/WalletConnectButton";
-import ThemeSwitch from "../components/ThemeSwitch";
-import "../style/swap-form.css";
-import { 
-  FSKFactoryABI, FSKRouterABI, FSKFactoryAddress, FSKRouterAddress 
+import { useWallet } from "../hooks/useWallet";
+import { useTheme } from "../hooks/useTheme";
+import { useSwap } from "../hooks/useSwap";
+import useTokenBalance from "../hooks/useTokenBalance";
+import { useTokenApproval } from "../hooks/useTokenAllowance"; 
+import "../style/swap.css";
+import {
+  fskRouterAddress,
+  FSKRouterABI,
+  BTC_ADDRESS,
+  FUSDT_ADDRESS,
 } from "../utils/constants";
 
 const Swap = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [fromToken, setFromToken] = useState(null);
-  const [toToken, setToToken] = useState(null);
+  const { theme, toggleTheme } = useTheme();
+  const { provider, signer, account, connectWallet } = useWallet();
+
+  const [fromToken, setFromToken] = useState(BTC_ADDRESS);
+  const [toToken, setToToken] = useState(FUSDT_ADDRESS);
   const [amountIn, setAmountIn] = useState("");
-  const [amountOut, setAmountOut] = useState("");
-  const [slippage, setSlippage] = useState(0.5); // default 0.5%
-  const [userAddress, setUserAddress] = useState("");
+  const [amountOut, setAmountOut] = useState("0");
 
-  // Initialize provider and signer
-  useEffect(() => {
-    if (window.ethereum) {
-      const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
-      setProvider(tempProvider);
-      const tempSigner = tempProvider.getSigner();
-      setSigner(tempSigner);
-      tempSigner.getAddress().then(setUserAddress);
-    }
-  }, []);
+  const swap = useSwap(signer);
 
-  // Estimate output
+  const fromBalance = useTokenBalance(fromToken, account, provider);
+  const toBalance = useTokenBalance(toToken, account, provider);
+
+  const { approved, checkAllowance, approve } = useTokenApproval(signer, fromToken, fskRouterAddress);
+
   useEffect(() => {
-    const estimate = async () => {
-      if (!fromToken || !toToken || !amountIn || !signer) return;
+    if (account) checkAllowance(account);
+  }, [account, fromToken]);
+
+  useEffect(() => {
+    const getAmount = async () => {
+      if (!amountIn || !swap) return setAmountOut("0");
       try {
-        const router = new ethers.Contract(FSKRouterAddress, FSKRouterABI, signer);
-        const amountsOut = await router.getAmountsOut(
-          ethers.utils.parseUnits(amountIn, fromToken.decimals),
-          [fromToken.address, toToken.address]
-        );
-        setAmountOut(ethers.utils.formatUnits(amountsOut[1], toToken.decimals));
+        const out = await swap.getAmountOut(amountIn, [fromToken, toToken]);
+        setAmountOut(out);
       } catch (err) {
         console.error(err);
         setAmountOut("0");
       }
     };
-    estimate();
-  }, [fromToken, toToken, amountIn, signer]);
+    getAmount();
+  }, [amountIn, fromToken, toToken, swap]);
 
   const handleSwap = async () => {
-    if (!fromToken || !toToken || !amountIn || !signer) return alert("Complete swap details");
+    if (!approved) {
+      await approve(amountIn);
+    }
     try {
-      const router = new ethers.Contract(FSKRouterAddress, FSKRouterABI, signer);
-      const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 min
-      const amountInWei = ethers.utils.parseUnits(amountIn, fromToken.decimals);
-      const amountsOutMin = ethers.utils.parseUnits(
-        (parseFloat(amountOut) * (1 - slippage / 100)).toFixed(toToken.decimals),
-        toToken.decimals
-      );
-
-      let tx;
-      if (fromToken.symbol === "BNB") {
-        tx = await router.swapExactETHForTokens(
-          amountsOutMin,
-          [fromToken.address, toToken.address],
-          userAddress,
-          deadline,
-          { value: amountInWei }
-        );
-      } else if (toToken.symbol === "BNB") {
-        const tokenContract = new ethers.Contract(fromToken.address, [
-          "function approve(address spender, uint256 amount) public returns (bool)"
-        ], signer);
-        await tokenContract.approve(FSKRouterAddress, amountInWei);
-        tx = await router.swapExactTokensForETH(
-          amountInWei,
-          amountsOutMin,
-          [fromToken.address, toToken.address],
-          userAddress,
-          deadline
-        );
-      } else {
-        const tokenContract = new ethers.Contract(fromToken.address, [
-          "function approve(address spender, uint256 amount) public returns (bool)"
-        ], signer);
-        await tokenContract.approve(FSKRouterAddress, amountInWei);
-        tx = await router.swapExactTokensForTokens(
-          amountInWei,
-          amountsOutMin,
-          [fromToken.address, toToken.address],
-          userAddress,
-          deadline
-        );
-      }
-      await tx.wait();
+      await swap.swap(amountIn, amountOut, [fromToken, toToken], account);
       alert("Swap successful!");
       setAmountIn("");
-      setAmountOut("");
     } catch (err) {
       console.error(err);
       alert("Swap failed: " + err.message);
@@ -105,55 +65,42 @@ const Swap = () => {
   };
 
   return (
-    <div className="swap-page">
+    <div className={`swap-page ${theme}`}>
       <header className="swap-header">
         <div className="logo">
           <img src="/assets/logo.svg" alt="FSKSwap" />
           <span>FSKSwap</span>
         </div>
-        <nav>
-          <a href="/swap">Swap</a>
-          <a href="/launchpad">Launchpad</a>
-          <a href="/staking">Staking</a>
-          <a href="/flashswap">FlashSwap</a>
-        </nav>
         <div className="header-right">
-          <WalletConnectButton provider={provider} setSigner={setSigner} />
-          <ThemeSwitch />
+          <WalletConnectButton provider={provider} setSigner={() => {}} />
+          <button onClick={toggleTheme}>{theme === "light" ? "🌞" : "🌙"}</button>
         </div>
       </header>
 
       <main className="swap-container">
         <h2>Swap Tokens</h2>
-        <div className="swap-form">
-          <TokenSelect 
-            label="From" 
-            selected={fromToken} 
-            setSelected={setFromToken} 
-            highlightFSK="yellow" 
-            highlightFUSDT="red"
-          />
-          <input
-            type="number"
-            placeholder="Amount"
-            value={amountIn}
-            onChange={(e) => setAmountIn(e.target.value)}
-          />
-          <TokenSelect 
-            label="To" 
-            selected={toToken} 
-            setSelected={setToToken} 
-            highlightFSK="yellow" 
-            highlightFUSDT="red"
-          />
-          <p>Estimated: {amountOut}</p>
-          <input
-            type="number"
-            placeholder="Slippage %"
-            value={slippage}
-            onChange={(e) => setSlippage(e.target.value)}
-          />
-          <button onClick={handleSwap}>Swap</button>
+
+        <div className="swap-card">
+          <div className="token-input">
+            <label>From:</label>
+            <input
+              type="number"
+              placeholder="0.0"
+              value={amountIn}
+              onChange={(e) => setAmountIn(e.target.value)}
+            />
+            <p>Balance: {fromBalance}</p>
+          </div>
+
+          <div className="token-input">
+            <label>To:</label>
+            <input type="text" value={amountOut} disabled />
+            <p>Balance: {toBalance}</p>
+          </div>
+
+          <button onClick={handleSwap} disabled={!amountIn || parseFloat(amountIn) <= 0}>
+            {approved ? "Swap" : "Approve & Swap"}
+          </button>
         </div>
       </main>
     </div>
