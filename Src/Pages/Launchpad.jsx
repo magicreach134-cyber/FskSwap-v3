@@ -14,8 +14,6 @@ const Launchpad = () => {
   const [userAddress, setUserAddress] = useState("");
   const [presales, setPresales] = useState([]);
   const [contribution, setContribution] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showActive, setShowActive] = useState(true);
 
   // Initialize provider and signer
   useEffect(() => {
@@ -66,7 +64,11 @@ const Launchpad = () => {
                 c.symbol()
               ]);
 
-            return { address: addr, token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized, name, symbol, contract: c };
+            // Determine presale status
+            const now = Math.floor(Date.now() / 1000);
+            const status = now < startTime ? "upcoming" : now >= startTime && now <= endTime ? "active" : "ended";
+
+            return { address: addr, token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized, name, symbol, status, contract: c };
           })
         );
 
@@ -79,7 +81,8 @@ const Launchpad = () => {
     fetchPresales();
   }, [signer, userAddress]);
 
-  const filteredPresales = usePresaleSearch(presales, searchTerm, showActive);
+  // Use the enhanced hook
+  const { query, setQuery, filteredPresales, statusFilter, setStatusFilter } = usePresaleSearch(presales, "active");
 
   const handleContribute = async (presale) => {
     if (!contribution || parseFloat(contribution) <= 0) return alert("Enter a valid amount");
@@ -140,12 +143,14 @@ const Launchpad = () => {
           <input
             type="text"
             placeholder="Search by token, symbol, or address..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
           />
           <div className="tabs">
-            <button className={showActive ? "active" : ""} onClick={() => setShowActive(true)}>Active</button>
-            <button className={!showActive ? "active" : ""} onClick={() => setShowActive(false)}>Upcoming</button>
+            <button className={statusFilter === "active" ? "active" : ""} onClick={() => setStatusFilter("active")}>Active</button>
+            <button className={statusFilter === "upcoming" ? "active" : ""} onClick={() => setStatusFilter("upcoming")}>Upcoming</button>
+            <button className={statusFilter === "ended" ? "active" : ""} onClick={() => setStatusFilter("ended")}>Ended</button>
+            <button className={statusFilter === "all" ? "active" : ""} onClick={() => setStatusFilter("all")}>All</button>
           </div>
         </div>
 
@@ -164,7 +169,7 @@ const Launchpad = () => {
             <p><strong>Time Left:</strong> {formatTime(p.endTime)}</p>
             <p><strong>Your Contribution:</strong> {ethers.utils.formatEther(p.userContribution)}</p>
 
-            {!p.finalized && (
+            {!p.finalized && p.status === "active" && (
               <>
                 <input
                   type="number"
