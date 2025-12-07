@@ -14,6 +14,13 @@ const Launchpad = () => {
   const [userAddress, setUserAddress] = useState("");
   const [contribution, setContribution] = useState("");
   const [activeTab, setActiveTab] = useState("active"); // active | upcoming
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Update current time every second for countdown
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Initialize ethers provider
   useEffect(() => {
@@ -93,8 +100,8 @@ const Launchpad = () => {
   // Search hook
   const { query, setQuery, filteredPresales } = usePresaleSearch(
     presales.filter((p) => {
-      if (activeTab === "active") return p.startTime * 1000 <= Date.now() && p.endTime * 1000 >= Date.now();
-      if (activeTab === "upcoming") return p.startTime * 1000 > Date.now();
+      if (activeTab === "active") return p.startTime * 1000 <= currentTime && p.endTime * 1000 >= currentTime;
+      if (activeTab === "upcoming") return p.startTime * 1000 > currentTime;
       return true;
     })
   );
@@ -125,13 +132,15 @@ const Launchpad = () => {
     }
   };
 
-  const formatTime = (timestamp) => {
-    const diff = timestamp * 1000 - Date.now();
-    if (diff <= 0) return "0d 0h 0m";
+  // Format countdown for upcoming presales
+  const countdown = (timestamp) => {
+    const diff = timestamp * 1000 - currentTime;
+    if (diff <= 0) return "Starting soon";
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
     const minutes = Math.floor((diff / (1000 * 60)) % 60);
-    return `${days}d ${hours}h ${minutes}m`;
+    const seconds = Math.floor((diff / 1000) % 60);
+    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
   };
 
   return (
@@ -185,7 +194,8 @@ const Launchpad = () => {
             <p><strong>Soft Cap:</strong> {ethers.utils.formatEther(p.softCap)}</p>
             <p><strong>Hard Cap:</strong> {ethers.utils.formatEther(p.hardCap)}</p>
             <p><strong>Total Raised:</strong> {ethers.utils.formatEther(p.totalRaised)}</p>
-            <p><strong>Time Left:</strong> {formatTime(p.endTime)}</p>
+            {activeTab === "active" && <p><strong>Time Left:</strong> {countdown(p.endTime)}</p>}
+            {activeTab === "upcoming" && <p><strong>Starts In:</strong> {countdown(p.startTime)}</p>}
             <p><strong>Your Contribution:</strong> {ethers.utils.formatEther(p.userContribution)}</p>
 
             {!p.finalized && activeTab === "active" && (
