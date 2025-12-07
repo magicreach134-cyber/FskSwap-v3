@@ -1,71 +1,53 @@
-// src/pages/FlashSwap.jsx
+"use client";
+
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../components/WalletConnectButton";
 import ThemeSwitch from "../components/ThemeSwitch";
-import "../style/flashswap.css";
-import { flashswapAddress, FlashSwapABI, tokenABIs } from "../utils/constants";
+import { useFlashSwap } from "../hooks/useFlashSwap";
+import { TOKEN_COLORS } from "../utils/constants";
+import "../styles/flashswap.css";
 
-const FlashSwap = () => {
+const FlashSwapPage = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [userAddress, setUserAddress] = useState("");
-  const [inputToken, setInputToken] = useState("FSK");
-  const [outputToken, setOutputToken] = useState("FUSDT");
-  const [amountIn, setAmountIn] = useState("");
+  const [account, setAccount] = useState("");
+  const [tokenBorrow, setTokenBorrow] = useState("FSK");
+  const [amount, setAmount] = useState("");
   const [estimatedProfit, setEstimatedProfit] = useState("0");
 
-  // Initialize provider and signer
+  const { estimateProfit, executeFlashSwap } = useFlashSwap(signer);
+
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
       setProvider(tempProvider);
       const tempSigner = tempProvider.getSigner();
       setSigner(tempSigner);
-      tempSigner.getAddress().then(setUserAddress);
+      tempSigner.getAddress().then(setAccount);
     }
   }, []);
 
-  // Estimate profit on input change
   useEffect(() => {
-    const estimate = async () => {
-      if (!signer || !amountIn || parseFloat(amountIn) <= 0) return;
+    const fetchEstimate = async () => {
+      if (!amount || !estimateProfit) return;
       try {
-        const flashSwapContract = new ethers.Contract(flashswapAddress, FlashSwapABI, signer);
-        const amountWei = ethers.utils.parseEther(amountIn);
-
-        // Assuming the contract has an estimateProfit function
-        const profit = await flashSwapContract.estimateProfit(
-          tokenABIs[inputToken].address,
-          tokenABIs[outputToken].address,
-          amountWei
-        );
-        setEstimatedProfit(ethers.utils.formatEther(profit));
+        const profit = await estimateProfit(tokenBorrow, amount);
+        setEstimatedProfit(profit);
       } catch (err) {
-        console.error("Profit estimation failed:", err);
+        console.error(err);
         setEstimatedProfit("0");
       }
     };
-    estimate();
-  }, [amountIn, inputToken, outputToken, signer]);
+    fetchEstimate();
+  }, [amount, tokenBorrow, estimateProfit]);
 
   const handleFlashSwap = async () => {
-    if (!amountIn || parseFloat(amountIn) <= 0) return alert("Enter a valid amount");
-
+    if (!amount || parseFloat(amount) <= 0) return alert("Enter a valid amount");
     try {
-      const flashSwapContract = new ethers.Contract(flashswapAddress, FlashSwapABI, signer);
-      const amountWei = ethers.utils.parseEther(amountIn);
-
-      // Execute flashswap
-      const tx = await flashSwapContract.executeFlashSwap(
-        tokenABIs[inputToken].address,
-        tokenABIs[outputToken].address,
-        amountWei
-      );
-
-      await tx.wait();
+      await executeFlashSwap(tokenBorrow, amount);
       alert("FlashSwap executed successfully!");
-      setAmountIn("");
+      setAmount("");
       setEstimatedProfit("0");
     } catch (err) {
       console.error(err);
@@ -95,40 +77,21 @@ const FlashSwap = () => {
       <main className="flashswap-container">
         <h2>FlashSwap</h2>
 
-        <div className="flashswap-form">
-          <div className="form-row">
-            <label>Input Token:</label>
-            <select value={inputToken} onChange={(e) => setInputToken(e.target.value)}>
-              {Object.keys(tokenABIs).map((token) => (
-                <option key={token} value={token}>{token}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-row">
-            <label>Output Token:</label>
-            <select value={outputToken} onChange={(e) => setOutputToken(e.target.value)}>
-              {Object.keys(tokenABIs).map((token) => (
-                <option key={token} value={token}>{token}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-row">
-            <label>Amount:</label>
-            <input
-              type="number"
-              placeholder="Amount in input token"
-              value={amountIn}
-              onChange={(e) => setAmountIn(e.target.value)}
-            />
-          </div>
-
-          <div className="profit-row">
-            <strong>Estimated Profit:</strong>{" "}
-            <span>{estimatedProfit} {outputToken}</span>
-          </div>
-
+        <div className="flashswap-card">
+          <label>Token to Borrow</label>
+          <input
+            type="text"
+            value={tokenBorrow}
+            onChange={(e) => setTokenBorrow(e.target.value)}
+            style={{ color: TOKEN_COLORS[tokenBorrow] || "#fff" }}
+          />
+          <label>Amount</label>
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          <p>Estimated Profit: {estimatedProfit}</p>
           <button onClick={handleFlashSwap}>Execute FlashSwap</button>
         </div>
       </main>
@@ -136,4 +99,4 @@ const FlashSwap = () => {
   );
 };
 
-export default FlashSwap;
+export default FlashSwapPage;
