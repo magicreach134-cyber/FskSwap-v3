@@ -1,11 +1,10 @@
-// src/pages/Launchpad.jsx
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../components/WalletConnectButton";
 import ThemeSwitch from "../components/ThemeSwitch";
+import usePresaleSearch from "../hooks/usePresaleSearch";
 import "../style/launchpad.css";
 import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../utils/constants";
-import usePresaleSearch from "../hooks/usePresaleSearch";
 
 const Launchpad = () => {
   const [provider, setProvider] = useState(null);
@@ -13,14 +12,8 @@ const Launchpad = () => {
   const [presales, setPresales] = useState([]);
   const [userAddress, setUserAddress] = useState("");
   const [contribution, setContribution] = useState("");
-  const [activeTab, setActiveTab] = useState("active"); // active | upcoming
-  const [currentTime, setCurrentTime] = useState(Date.now());
-
-  // Update current time every second for countdown
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showActive, setShowActive] = useState(true); // toggle between active/upcoming
 
   // Initialize ethers provider
   useEffect(() => {
@@ -57,21 +50,19 @@ const Launchpad = () => {
               "function finalized() view returns (bool)",
               "function claim()",
               "function name() view returns (string)",
-              "function symbol() view returns (string)",
+              "function symbol() view returns (string)"
             ], signer);
 
-            const [token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized, tokenName, tokenSymbol] = await Promise.all([
-              presaleContract.token(),
-              presaleContract.softCap(),
-              presaleContract.hardCap(),
-              presaleContract.totalRaised(),
-              presaleContract.startTime(),
-              presaleContract.endTime(),
-              presaleContract.contributions(userAddress),
-              presaleContract.finalized(),
-              presaleContract.name ? presaleContract.name() : "Unknown",
-              presaleContract.symbol ? presaleContract.symbol() : "UNK"
-            ]);
+            const token = await presaleContract.token();
+            const softCap = await presaleContract.softCap();
+            const hardCap = await presaleContract.hardCap();
+            const totalRaised = await presaleContract.totalRaised();
+            const startTime = await presaleContract.startTime();
+            const endTime = await presaleContract.endTime();
+            const userContribution = await presaleContract.contributions(userAddress);
+            const finalized = await presaleContract.finalized();
+            const name = await presaleContract.name();
+            const symbol = await presaleContract.symbol();
 
             return {
               address: addr,
@@ -84,8 +75,8 @@ const Launchpad = () => {
               userContribution,
               finalized,
               contract: presaleContract,
-              tokenName,
-              tokenSymbol,
+              name,
+              symbol
             };
           })
         );
@@ -97,14 +88,8 @@ const Launchpad = () => {
     fetchPresales();
   }, [signer, userAddress]);
 
-  // Search hook
-  const { query, setQuery, filteredPresales } = usePresaleSearch(
-    presales.filter((p) => {
-      if (activeTab === "active") return p.startTime * 1000 <= currentTime && p.endTime * 1000 >= currentTime;
-      if (activeTab === "upcoming") return p.startTime * 1000 > currentTime;
-      return true;
-    })
-  );
+  // Filtered presales using search hook
+  const filteredPresales = usePresaleSearch(presales, searchTerm, showActive);
 
   const handleContribute = async (presale) => {
     if (!contribution || parseFloat(contribution) <= 0) return alert("Enter a valid amount");
@@ -132,15 +117,13 @@ const Launchpad = () => {
     }
   };
 
-  // Format countdown for upcoming presales
-  const countdown = (timestamp) => {
-    const diff = timestamp * 1000 - currentTime;
-    if (diff <= 0) return "Starting soon";
+  const formatTime = (timestamp) => {
+    const diff = timestamp * 1000 - Date.now();
+    if (diff <= 0) return "0d 0h 0m";
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
     const minutes = Math.floor((diff / (1000 * 60)) % 60);
-    const seconds = Math.floor((diff / 1000) % 60);
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    return `${days}d ${hours}h ${minutes}m`;
   };
 
   return (
@@ -163,42 +146,43 @@ const Launchpad = () => {
       </header>
 
       <main className="launchpad-container">
-        <div className="launchpad-tabs">
-          <button
-            className={activeTab === "active" ? "active" : ""}
-            onClick={() => setActiveTab("active")}
-          >
-            Active Presales
-          </button>
-          <button
-            className={activeTab === "upcoming" ? "active" : ""}
-            onClick={() => setActiveTab("upcoming")}
-          >
-            Upcoming Presales
-          </button>
+        <h2>Presales</h2>
+
+        <div className="presale-controls">
+          <input
+            type="text"
+            placeholder="Search by token, symbol, or address..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <div className="tabs">
+            <button
+              className={showActive ? "active" : ""}
+              onClick={() => setShowActive(true)}
+            >
+              Active
+            </button>
+            <button
+              className={!showActive ? "active" : ""}
+              onClick={() => setShowActive(false)}
+            >
+              Upcoming
+            </button>
+          </div>
         </div>
 
-        <input
-          type="text"
-          placeholder="Search presales by token name, symbol, or address"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="presale-search"
-        />
-
         {filteredPresales.length === 0 && <p>No presales found.</p>}
-
-        {filteredPresales.map((p) => (
-          <div key={p.address} className="presale-card">
-            <p><strong>Token:</strong> {p.tokenName} ({p.tokenSymbol})</p>
+        {filteredPresales.map((p, idx) => (
+          <div key={idx} className="presale-card">
+            <p><strong>Token:</strong> {p.name} ({p.symbol})</p>
+            <p><strong>Token Address:</strong> {p.token}</p>
             <p><strong>Soft Cap:</strong> {ethers.utils.formatEther(p.softCap)}</p>
             <p><strong>Hard Cap:</strong> {ethers.utils.formatEther(p.hardCap)}</p>
             <p><strong>Total Raised:</strong> {ethers.utils.formatEther(p.totalRaised)}</p>
-            {activeTab === "active" && <p><strong>Time Left:</strong> {countdown(p.endTime)}</p>}
-            {activeTab === "upcoming" && <p><strong>Starts In:</strong> {countdown(p.startTime)}</p>}
+            <p><strong>Time Left:</strong> {formatTime(p.endTime)}</p>
             <p><strong>Your Contribution:</strong> {ethers.utils.formatEther(p.userContribution)}</p>
 
-            {!p.finalized && activeTab === "active" && (
+            {!p.finalized && (
               <>
                 <input
                   type="number"
