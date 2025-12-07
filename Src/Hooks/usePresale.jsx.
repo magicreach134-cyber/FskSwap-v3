@@ -1,48 +1,90 @@
+// src/hooks/usePresales.jsx
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../utils/constants";
 
-export const usePresales = (signer, userAccount) => {
+const usePresales = (provider, userAddress) => {
   const [presales, setPresales] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!signer) return;
+    if (!provider || !userAddress) return;
 
     const fetchPresales = async () => {
-      const factory = new ethers.Contract(launchpadFactoryAddress, FSKLaunchpadFactoryABI, signer);
-      const addresses = await factory.getPresales();
-      const details = await Promise.all(
-        addresses.map(async (addr) => {
-          const presaleContract = new ethers.Contract(addr, [
-            "function token() view returns (address)",
-            "function softCap() view returns (uint256)",
-            "function hardCap() view returns (uint256)",
-            "function totalRaised() view returns (uint256)",
-            "function startTime() view returns (uint256)",
-            "function endTime() view returns (uint256)",
-            "function contributions(address) view returns (uint256)",
-            "function finalized() view returns (bool)",
-            "function contribute() payable",
-            "function claim()"
-          ], signer);
+      setLoading(true);
+      try {
+        const signer = provider.getSigner();
+        const factory = new ethers.Contract(
+          launchpadFactoryAddress,
+          FSKLaunchpadFactoryABI,
+          signer
+        );
 
-          const token = await presaleContract.token();
-          const softCap = await presaleContract.softCap();
-          const hardCap = await presaleContract.hardCap();
-          const totalRaised = await presaleContract.totalRaised();
-          const startTime = await presaleContract.startTime();
-          const endTime = await presaleContract.endTime();
-          const userContribution = await presaleContract.contributions(userAccount);
-          const finalized = await presaleContract.finalized();
+        const presaleAddresses = await factory.getPresales();
 
-          return { addr, token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized, contract: presaleContract };
-        })
-      );
-      setPresales(details);
+        const presaleDetails = await Promise.all(
+          presaleAddresses.map(async (addr) => {
+            const presaleContract = new ethers.Contract(addr, [
+              "function token() view returns (address)",
+              "function softCap() view returns (uint256)",
+              "function hardCap() view returns (uint256)",
+              "function totalRaised() view returns (uint256)",
+              "function startTime() view returns (uint256)",
+              "function endTime() view returns (uint256)",
+              "function contributions(address) view returns (uint256)",
+              "function finalized() view returns (bool)",
+            ], signer);
+
+            const [token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized] = 
+              await Promise.all([
+                presaleContract.token(),
+                presaleContract.softCap(),
+                presaleContract.hardCap(),
+                presaleContract.totalRaised(),
+                presaleContract.startTime(),
+                presaleContract.endTime(),
+                presaleContract.contributions(userAddress),
+                presaleContract.finalized(),
+              ]);
+
+            const now = Math.floor(Date.now() / 1000);
+            const status = now < startTime
+              ? "upcoming"
+              : now >= startTime && now <= endTime
+              ? "active"
+              : "ended";
+
+            return {
+              address: addr,
+              token,
+              softCap,
+              hardCap,
+              totalRaised,
+              startTime,
+              endTime,
+              userContribution,
+              finalized,
+              status,
+              contract: presaleContract,
+            };
+          })
+        );
+
+        setPresales(presaleDetails);
+      } catch (err) {
+        console.error("usePresales error:", err);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchPresales();
-  }, [signer, userAccount]);
+  }, [provider, userAddress]);
 
-  return { presales, setPresales };
+  const activePresales = presales.filter((p) => p.status === "active");
+  const upcomingPresales = presales.filter((p) => p.status === "upcoming");
+
+  return { presales, activePresales, upcomingPresales, loading };
 };
+
+export default usePresales;
