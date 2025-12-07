@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { FSKSwapLPStakingABI, fskLPStakingAddress } from "../utils/constants";
