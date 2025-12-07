@@ -1,4 +1,5 @@
-// src/hooks/usePresaleContribution.jsx
+"use client";
+
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 
