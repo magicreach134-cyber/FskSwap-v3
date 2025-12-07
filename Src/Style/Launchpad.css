@@ -1,11 +1,40 @@
-/* src/style/launchpad.css */
+/* ================================
+   LAUNCHPAD PAGE (LIGHT + DARK)
+   ================================ */
+
+/* Root Dynamic Theme */
+:root[data-theme="light"] {
+  --lp-bg: #f9f9f9;
+  --lp-text: #111;
+  --lp-header-bg: #fff;
+  --lp-card-bg: #fff;
+  --lp-border: #ccc;
+  --lp-input-bg: #fff;
+  --lp-button-bg: #fbbf24;
+  --lp-button-hover: #e0a800;
+  --lp-tab-bg: #e5e7eb;
+  --lp-tab-text: #111;
+}
+
+:root[data-theme="dark"] {
+  --lp-bg: #121212;
+  --lp-text: #e5e5e5;
+  --lp-header-bg: #1f1f1f;
+  --lp-card-bg: #1f1f1f;
+  --lp-border: #3a3a3a;
+  --lp-input-bg: #2b2b2b;
+  --lp-button-bg: #fbbf24;
+  --lp-button-hover: #cc9200;
+  --lp-tab-bg: #292929;
+  --lp-tab-text: #e5e5e5;
+}
 
 /* Page Container */
 .launchpad-page {
   font-family: 'Inter', sans-serif;
-  background-color: #f9f9f9;
+  background-color: var(--lp-bg);
   min-height: 100vh;
-  color: #111;
+  color: var(--lp-text);
 }
 
 /* Header */
@@ -14,7 +43,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background-color: #fff;
+  background-color: var(--lp-header-bg);
   box-shadow: 0 2px 10px rgba(0,0,0,0.05);
   position: sticky;
   top: 0;
@@ -36,13 +65,13 @@
 .launchpad-header nav a {
   margin: 0 1rem;
   text-decoration: none;
-  color: #111;
+  color: var(--lp-text);
   font-weight: 500;
   transition: color 0.2s ease-in-out;
 }
 
 .launchpad-header nav a:hover {
-  color: #fbbf24; /* Yellow gold hover */
+  color: var(--lp-button-bg);
 }
 
 .header-right {
@@ -76,8 +105,10 @@
   flex: 1;
   padding: 0.6rem 1rem;
   border-radius: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--lp-border);
   font-size: 0.95rem;
+  background-color: var(--lp-input-bg);
+  color: var(--lp-text);
 }
 
 .presale-controls .tabs {
@@ -88,21 +119,22 @@
 .presale-controls .tabs button {
   padding: 0.5rem 1rem;
   border: none;
-  background-color: #e5e7eb;
+  background-color: var(--lp-tab-bg);
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.2s;
+  color: var(--lp-tab-text);
 }
 
 .presale-controls .tabs button.active {
-  background-color: #fbbf24; /* Active tab yellow gold */
+  background-color: var(--lp-button-bg);
   color: #111;
 }
 
 /* Presale Cards */
 .presale-card {
-  background-color: #fff;
+  background-color: var(--lp-card-bg);
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.05);
   padding: 1.5rem;
@@ -123,13 +155,15 @@
   width: 100%;
   padding: 0.6rem 1rem;
   border-radius: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--lp-border);
   margin: 0.5rem 0;
+  background-color: var(--lp-input-bg);
+  color: var(--lp-text);
 }
 
 .presale-card button {
   padding: 0.6rem 1.2rem;
-  background-color: #fbbf24; /* Yellow gold buttons */
+  background-color: var(--lp-button-bg);
   border: none;
   border-radius: 8px;
   color: #111;
@@ -139,7 +173,7 @@
 }
 
 .presale-card button:hover {
-  background-color: #e0a800;
+  background-color: var(--lp-button-hover);
 }
 
 /* Responsive */
