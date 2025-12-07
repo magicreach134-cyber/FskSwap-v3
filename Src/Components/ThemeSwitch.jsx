@@ -1,24 +1,17 @@
 // src/components/ThemeSwitch.jsx
-"use client";
-
-import { useTheme } from "../context/ThemeContext";
+import { useContext } from "react";
+import { ThemeContext } from "../context/ThemeContext";
 
 const ThemeSwitch = () => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useContext(ThemeContext);
 
   return (
     <button
+      className={`theme-switch ${theme}`}
       onClick={toggleTheme}
-      style={{
-        padding: "6px 10px",
-        borderRadius: "8px",
-        border: "1px solid #ccc",
-        background: theme === "light" ? "#fff" : "#222",
-        color: theme === "light" ? "#000" : "#fff",
-        cursor: "pointer",
-      }}
+      title="Toggle Light/Dark Mode"
     >
-      {theme === "light" ? "🌞 Light" : "🌙 Dark"}
+      {theme === "light" ? "🌙 Dark" : "☀️ Light"}
     </button>
   );
 };
