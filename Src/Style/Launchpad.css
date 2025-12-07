@@ -1,0 +1,155 @@
+/* src/style/launchpad.css */
+
+/* Page Container */
+.launchpad-page {
+  font-family: 'Inter', sans-serif;
+  background-color: #f9f9f9;
+  min-height: 100vh;
+  color: #111;
+}
+
+/* Header */
+.launchpad-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.launchpad-header .logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.launchpad-header .logo img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.launchpad-header nav a {
+  margin: 0 1rem;
+  text-decoration: none;
+  color: #111;
+  font-weight: 500;
+  transition: color 0.2s ease-in-out;
+}
+
+.launchpad-header nav a:hover {
+  color: #fbbf24; /* Yellow gold hover */
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Main Launchpad Container */
+.launchpad-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.launchpad-container h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+/* Search & Tabs */
+.presale-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.presale-controls input[type="text"] {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 0.95rem;
+}
+
+.presale-controls .tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.presale-controls .tabs button {
+  padding: 0.5rem 1rem;
+  border: none;
+  background-color: #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.presale-controls .tabs button.active {
+  background-color: #fbbf24; /* Active tab yellow gold */
+  color: #111;
+}
+
+/* Presale Cards */
+.presale-card {
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  transition: transform 0.2s ease-in-out;
+}
+
+.presale-card:hover {
+  transform: translateY(-2px);
+}
+
+.presale-card p {
+  margin: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+.presale-card input[type="number"] {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin: 0.5rem 0;
+}
+
+.presale-card button {
+  padding: 0.6rem 1.2rem;
+  background-color: #fbbf24; /* Yellow gold buttons */
+  border: none;
+  border-radius: 8px;
+  color: #111;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.presale-card button:hover {
+  background-color: #e0a800;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .launchpad-header nav {
+    display: none;
+  }
+
+  .presale-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
