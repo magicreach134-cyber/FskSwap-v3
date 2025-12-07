@@ -5,6 +5,7 @@ import WalletConnectButton from "../components/WalletConnectButton";
 import ThemeSwitch from "../components/ThemeSwitch";
 import "../style/launchpad.css";
 import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../utils/constants";
+import usePresaleSearch from "../hooks/usePresaleSearch";
 
 const Launchpad = () => {
   const [provider, setProvider] = useState(null);
@@ -12,9 +13,9 @@ const Launchpad = () => {
   const [presales, setPresales] = useState([]);
   const [userAddress, setUserAddress] = useState("");
   const [contribution, setContribution] = useState("");
-  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("active"); // active | upcoming
 
-  // Initialize ethers provider and signer
+  // Initialize ethers provider
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
@@ -25,7 +26,7 @@ const Launchpad = () => {
     }
   }, []);
 
-  // Fetch presales
+  // Load presales from factory
   useEffect(() => {
     const fetchPresales = async () => {
       if (!signer) return;
@@ -48,16 +49,22 @@ const Launchpad = () => {
               "function contributions(address) view returns (uint256)",
               "function finalized() view returns (bool)",
               "function claim()",
+              "function name() view returns (string)",
+              "function symbol() view returns (string)",
             ], signer);
 
-            const token = await presaleContract.token();
-            const softCap = await presaleContract.softCap();
-            const hardCap = await presaleContract.hardCap();
-            const totalRaised = await presaleContract.totalRaised();
-            const startTime = await presaleContract.startTime();
-            const endTime = await presaleContract.endTime();
-            const userContribution = await presaleContract.contributions(userAddress);
-            const finalized = await presaleContract.finalized();
+            const [token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized, tokenName, tokenSymbol] = await Promise.all([
+              presaleContract.token(),
+              presaleContract.softCap(),
+              presaleContract.hardCap(),
+              presaleContract.totalRaised(),
+              presaleContract.startTime(),
+              presaleContract.endTime(),
+              presaleContract.contributions(userAddress),
+              presaleContract.finalized(),
+              presaleContract.name ? presaleContract.name() : "Unknown",
+              presaleContract.symbol ? presaleContract.symbol() : "UNK"
+            ]);
 
             return {
               address: addr,
@@ -70,6 +77,8 @@ const Launchpad = () => {
               userContribution,
               finalized,
               contract: presaleContract,
+              tokenName,
+              tokenSymbol,
             };
           })
         );
@@ -80,6 +89,15 @@ const Launchpad = () => {
     };
     fetchPresales();
   }, [signer, userAddress]);
+
+  // Search hook
+  const { query, setQuery, filteredPresales } = usePresaleSearch(
+    presales.filter((p) => {
+      if (activeTab === "active") return p.startTime * 1000 <= Date.now() && p.endTime * 1000 >= Date.now();
+      if (activeTab === "upcoming") return p.startTime * 1000 > Date.now();
+      return true;
+    })
+  );
 
   const handleContribute = async (presale) => {
     if (!contribution || parseFloat(contribution) <= 0) return alert("Enter a valid amount");
@@ -116,16 +134,6 @@ const Launchpad = () => {
     return `${days}d ${hours}h ${minutes}m`;
   };
 
-  const filteredPresales = presales.filter(p => 
-    p.token.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const getTokenColor = (token) => {
-    if (token.toLowerCase() === "fsk") return "goldenrod"; // yellow gold
-    if (token.toLowerCase() === "fusdt") return "darkred"; // red gold
-    return "#fff"; // default white
-  };
-
   return (
     <div className="launchpad-page">
       <header className="launchpad-header">
@@ -146,30 +154,41 @@ const Launchpad = () => {
       </header>
 
       <main className="launchpad-container">
-        <h2>Active & Upcoming Presales</h2>
+        <div className="launchpad-tabs">
+          <button
+            className={activeTab === "active" ? "active" : ""}
+            onClick={() => setActiveTab("active")}
+          >
+            Active Presales
+          </button>
+          <button
+            className={activeTab === "upcoming" ? "active" : ""}
+            onClick={() => setActiveTab("upcoming")}
+          >
+            Upcoming Presales
+          </button>
+        </div>
+
         <input
           type="text"
-          placeholder="Search by token"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search presales by token name, symbol, or address"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
           className="presale-search"
         />
 
-        {filteredPresales.length === 0 && <p>No presales available.</p>}
+        {filteredPresales.length === 0 && <p>No presales found.</p>}
 
-        {filteredPresales.map((p, idx) => (
-          <div key={idx} className="presale-card">
-            <p>
-              <strong>Token:</strong>{" "}
-              <span style={{ color: getTokenColor(p.token) }}>{p.token}</span>
-            </p>
+        {filteredPresales.map((p) => (
+          <div key={p.address} className="presale-card">
+            <p><strong>Token:</strong> {p.tokenName} ({p.tokenSymbol})</p>
             <p><strong>Soft Cap:</strong> {ethers.utils.formatEther(p.softCap)}</p>
             <p><strong>Hard Cap:</strong> {ethers.utils.formatEther(p.hardCap)}</p>
             <p><strong>Total Raised:</strong> {ethers.utils.formatEther(p.totalRaised)}</p>
             <p><strong>Time Left:</strong> {formatTime(p.endTime)}</p>
             <p><strong>Your Contribution:</strong> {ethers.utils.formatEther(p.userContribution)}</p>
 
-            {!p.finalized && (
+            {!p.finalized && activeTab === "active" && (
               <>
                 <input
                   type="number"
