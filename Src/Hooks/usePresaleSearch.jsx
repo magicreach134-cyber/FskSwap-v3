@@ -1,7 +1,9 @@
-"use client";
-
 import { useState, useMemo } from "react";
 
+/**
+ * Hook to filter presales based on search query.
+ * @param {Array} presales - Array of presale objects
+ */
 const usePresaleSearch = (presales) => {
   const [query, setQuery] = useState("");
 
@@ -9,10 +11,12 @@ const usePresaleSearch = (presales) => {
     if (!query) return presales;
 
     const lowerQuery = query.toLowerCase();
+
     return presales.filter((p) => {
-      const tokenAddr = p.token.toLowerCase();
-      const tokenName = (p.tokenName || "").toLowerCase();
-      const tokenSymbol = (p.tokenSymbol || "").toLowerCase();
+      const tokenAddr = (p.token || "").toLowerCase();
+      const tokenName = (p.name || "").toLowerCase();
+      const tokenSymbol = (p.symbol || "").toLowerCase();
+
       return (
         tokenAddr.includes(lowerQuery) ||
         tokenName.includes(lowerQuery) ||
