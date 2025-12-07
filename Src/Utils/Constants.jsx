@@ -1,42 +1,53 @@
-import BTC from "./abis/BTC";
-import ETH from "./abis/ETH";
-import SOL from "./abis/SOL";
-import USDC from "./abis/USDC";
-import FUSDT from "./abis/FUSDT";
-import WBNB from "./abis/WBNB";
-import Fressking from "./abis/Fressking";
-import FSKFactory from "./abis/FSKFactory";
-import FSKRouter from "./abis/FSKRouter";
-import FSKFeeCollector from "./abis/FSKFeeCollector";
-import FSKHelpFundAllPool from "./abis/FSKHelpFundAllPool";
-import FSKLaunchpadFactory from "./abis/FSKLaunchpadFactory";
-import FSKSwapLPStaking from "./abis/FSKSwapLPStaking";
-import IFSKRouter from "./abis/IFSKRouter";
-import FlashSwapABI from "./abis/FlashSwap"; // your flashswap ABI
+// src/utils/constants.js
 
-export const TokenList = [
-  { symbol: "BTC", address: "0xd397b48d6faf5311c166aed21313f48e2a574525", decimals: 8 },
-  { symbol: "ETH", address: "0x122cca6190b40de4fd3ee28a97c995d8c6524921", decimals: 18 },
-  { symbol: "SOL", address: "0x39c833e1f576d372e221e31ce82dd52b520e970c", decimals: 18 },
-  { symbol: "USDC", address: "0x1c5206eeb5df5127204495969955000d15d1c0be", decimals: 18 },
-  { symbol: "FUSDT", address: "0x02F1303f087C6D78F4142bc2dE8430348982d549", decimals: 18 },
-  { symbol: "WBNB", address: "0xae13d989dac2f0debff460ac112a837c89baa7cd", decimals: 18 },
-  { symbol: "Fressking", address: "0x784f97B0c8116727F8B6417b86975F77411e219B", decimals: 18 },
-];
+// Import ABIs
+import BTC from "./abis/BTC.json";
+import ETH from "./abis/ETH.json";
+import SOL from "./abis/SOL.json";
+import USDC from "./abis/USDC.json";
+import FUSDT from "./abis/FUSDT.json";
+import WBNB from "./abis/WBNB.json";
+import FSK from "./abis/Fressking.json";
+import FSKFactory from "./abis/FskFactory.json";
+import FSKRouter from "./abis/FskRouter.json";
+import FSKFeeCollector from "./abis/FSKFeeCollector.json";
+import FSKHelpFundAllPool from "./abis/FSKHelpFundAllPool.json";
+import FSKLaunchpadFactory from "./abis/FSKLaunchpadFactory.json";
+import FSKSwapLPStaking from "./abis/FSKSwapLPStaking.json";
+import IFSKRouter from "./abis/IFSKRouter.json";
 
-export const routerAddress = "0xYOUR_ROUTER_ADDRESS";
-export const launchpadFactoryAddress = "0xYOUR_LAUNCHPAD_FACTORY";
-export const FSKSwapLPStakingAddress = "0xYOUR_STAKING_ADDRESS";
-export const flashSwapAddress = "0xYOUR_FLASHSWAP_ADDRESS";
+// Contract Addresses (checksummed)
+export const contracts = {
+  FSKMegaLocker: "0x949B162Cf291F42Bc04040357844e7bD2e5F07cC",
+  FSKLaunchpadFactory: "0xB1E2AE6db2bDFE7aC5599e79bdF997A9EbD2F581",
+  FSKFeeCollector: "0x935412d3a9570F8B479D6A2eC2E586A26bE0AE9C",
+  FskFlashSwap: "0x461209c870760A1cf7C84aFeB2235F0C3e9E8EbA",
+  FskHelpFundPool: "0x8F6eC84595eF52B2Eb16BA6D1960E0110FC1c5c3",
+  FSKRouterV3: "0xF89671B5AC9dC671E941AcE0171AF22f9F0bFEfF",
+  FskFactoryV2: "0xE3E00C0E1AA234a81224bD9c6ff13a625b45EF78",
+  FSKSwapLPStaking: "0x746cA308A6d36e6634311fDcd45f2a0ED8C4E3Ab",
+};
 
-export {
+// Token Addresses
+export const tokens = {
+  BTC: "0xD397B48d6Faf5311C166AeD21313F48E2a574525",
+  ETH: "0x122cCA6190B40DE4FD3Ee28A97C995D8C6524921",
+  SOL: "0x39C833E1f576D372E221E31cE82dd52B520e970c",
+  USDC: "0x1C5206Eeb5Df5127204495969955000D15D1C0bE",
+  FUSDT: "0x02F1303F087c6D78f4142BC2dE8430348982D549",
+  WBNB: "0xAe13d989DaC2f0dEbFf460aC112a837C89BAa7cd",
+  FSK: "0x784F97b0C8116727F8b6417b86975F77411E219B",
+};
+
+// Export ABIs
+export const ABIs = {
   BTC,
   ETH,
   SOL,
   USDC,
   FUSDT,
   WBNB,
-  Fressking,
+  FSK,
   FSKFactory,
   FSKRouter,
   FSKFeeCollector,
@@ -44,5 +55,4 @@ export {
   FSKLaunchpadFactory,
   FSKSwapLPStaking,
   IFSKRouter,
-  FlashSwapABI
 };
