@@ -3,14 +3,12 @@
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../components/WalletConnectButton";
-import { useTheme } from "../hooks/useTheme";
+import ThemeSwitch from "../components/ThemeSwitch";
 import usePresaleSearch from "../hooks/usePresaleSearch";
-import { useDebounce } from "../hooks/useDebounce";
-import "../style/launchpad.css";
-import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../utils/constants";
+import { launchpadFactoryAddress, FSKLaunchpadFactoryABI, TOKEN_COLORS } from "../utils/constants";
+import "../styles/launchpad.css";
 
 const Launchpad = () => {
-  const { theme, toggleTheme } = useTheme();
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [userAddress, setUserAddress] = useState("");
@@ -19,9 +17,7 @@ const Launchpad = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showActive, setShowActive] = useState(true);
 
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
-
-  // Initialize ethers provider
+  // Initialize provider and signer
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
@@ -32,20 +28,18 @@ const Launchpad = () => {
     }
   }, []);
 
-  // Fetch presales from factory
+  // Load presales from factory
   useEffect(() => {
     const fetchPresales = async () => {
       if (!signer) return;
+
       try {
-        const factory = new ethers.Contract(
-          launchpadFactoryAddress,
-          FSKLaunchpadFactoryABI,
-          signer
-        );
-        const presaleAddresses = await factory.getPresales();
-        const presaleDetails = await Promise.all(
-          presaleAddresses.map(async (addr) => {
-            const presaleContract = new ethers.Contract(addr, [
+        const factory = new ethers.Contract(launchpadFactoryAddress, FSKLaunchpadFactoryABI, signer);
+        const addresses = await factory.getPresales();
+
+        const details = await Promise.all(
+          addresses.map(async (addr) => {
+            const c = new ethers.Contract(addr, [
               "function token() view returns (address)",
               "function softCap() view returns (uint256)",
               "function hardCap() view returns (uint256)",
@@ -58,49 +52,39 @@ const Launchpad = () => {
               "function symbol() view returns (string)"
             ], signer);
 
-            const token = await presaleContract.token();
-            const softCap = await presaleContract.softCap();
-            const hardCap = await presaleContract.hardCap();
-            const totalRaised = await presaleContract.totalRaised();
-            const startTime = await presaleContract.startTime();
-            const endTime = await presaleContract.endTime();
-            const userContribution = await presaleContract.contributions(userAddress);
-            const finalized = await presaleContract.finalized();
-            const name = await presaleContract.name();
-            const symbol = await presaleContract.symbol();
+            const [token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized, name, symbol] =
+              await Promise.all([
+                c.token(),
+                c.softCap(),
+                c.hardCap(),
+                c.totalRaised(),
+                c.startTime(),
+                c.endTime(),
+                c.contributions(userAddress),
+                c.finalized(),
+                c.name(),
+                c.symbol()
+              ]);
 
-            return {
-              address: addr,
-              token,
-              softCap,
-              hardCap,
-              totalRaised,
-              startTime,
-              endTime,
-              userContribution,
-              finalized,
-              contract: presaleContract,
-              name,
-              symbol
-            };
+            return { address: addr, token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized, name, symbol, contract: c };
           })
         );
-        setPresales(presaleDetails);
+
+        setPresales(details);
       } catch (err) {
         console.error(err);
       }
     };
+
     fetchPresales();
   }, [signer, userAddress]);
 
-  const filteredPresales = usePresaleSearch(presales, debouncedSearchTerm, showActive);
+  const filteredPresales = usePresaleSearch(presales, searchTerm, showActive);
 
   const handleContribute = async (presale) => {
     if (!contribution || parseFloat(contribution) <= 0) return alert("Enter a valid amount");
     try {
-      const tx = await presale.contract.contribute({
-        value: ethers.utils.parseEther(contribution),
-      });
+      const tx = await presale.contract.contribute({ value: ethers.utils.parseEther(contribution) });
       await tx.wait();
       alert("Contribution successful!");
       setContribution("");
@@ -121,8 +105,8 @@ const Launchpad = () => {
     }
   };
 
-  const formatTime = (timestamp) => {
-    const diff = timestamp * 1000 - Date.now();
+  const formatTime = (ts) => {
+    const diff = ts * 1000 - Date.now();
     if (diff <= 0) return "0d 0h 0m";
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
@@ -131,7 +115,7 @@ const Launchpad = () => {
   };
 
   return (
-    <div className={`launchpad-page ${theme}`}>
+    <div className="launchpad-page">
       <header className="launchpad-header">
         <div className="logo">
           <img src="/assets/logo.svg" alt="FSKSwap" />
@@ -145,7 +129,7 @@ const Launchpad = () => {
         </nav>
         <div className="header-right">
           <WalletConnectButton provider={provider} setSigner={setSigner} />
-          <button onClick={toggleTheme}>{theme === "light" ? "🌞" : "🌙"}</button>
+          <ThemeSwitch />
         </div>
       </header>
 
@@ -160,25 +144,19 @@ const Launchpad = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <div className="tabs">
-            <button
-              className={showActive ? "active" : ""}
-              onClick={() => setShowActive(true)}
-            >
-              Active
-            </button>
-            <button
-              className={!showActive ? "active" : ""}
-              onClick={() => setShowActive(false)}
-            >
-              Upcoming
-            </button>
+            <button className={showActive ? "active" : ""} onClick={() => setShowActive(true)}>Active</button>
+            <button className={!showActive ? "active" : ""} onClick={() => setShowActive(false)}>Upcoming</button>
           </div>
         </div>
 
         {filteredPresales.length === 0 && <p>No presales found.</p>}
+
         {filteredPresales.map((p, idx) => (
           <div key={idx} className="presale-card">
-            <p><strong>Token:</strong> {p.name} ({p.symbol})</p>
+            <p>
+              <strong>Token:</strong>{" "}
+              <span style={{ color: TOKEN_COLORS[p.symbol] || "#fff" }}>{p.name} ({p.symbol})</span>
+            </p>
             <p><strong>Token Address:</strong> {p.token}</p>
             <p><strong>Soft Cap:</strong> {ethers.utils.formatEther(p.softCap)}</p>
             <p><strong>Hard Cap:</strong> {ethers.utils.formatEther(p.hardCap)}</p>
