@@ -3,61 +3,50 @@
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../components/WalletConnectButton";
-import { useWallet } from "../hooks/useWallet";
-import { useTheme } from "../hooks/useTheme";
+import ThemeSwitch from "../components/ThemeSwitch";
 import { useSwap } from "../hooks/useSwap";
-import useTokenBalance from "../hooks/useTokenBalance";
-import { useTokenApproval } from "../hooks/useTokenAllowance"; 
-import "../style/swap.css";
-import {
-  fskRouterAddress,
-  FSKRouterABI,
-  BTC_ADDRESS,
-  FUSDT_ADDRESS,
-} from "../utils/constants";
+import { TOKEN_COLORS } from "../utils/constants";
+import "../styles/swap.css";
 
 const Swap = () => {
-  const { theme, toggleTheme } = useTheme();
-  const { provider, signer, account, connectWallet } = useWallet();
-
-  const [fromToken, setFromToken] = useState(BTC_ADDRESS);
-  const [toToken, setToToken] = useState(FUSDT_ADDRESS);
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [account, setAccount] = useState("");
   const [amountIn, setAmountIn] = useState("");
-  const [amountOut, setAmountOut] = useState("0");
+  const [amountOut, setAmountOut] = useState("");
+  const [fromToken, setFromToken] = useState("FSK");
+  const [toToken, setToToken] = useState("FUSDT");
 
-  const swap = useSwap(signer);
-
-  const fromBalance = useTokenBalance(fromToken, account, provider);
-  const toBalance = useTokenBalance(toToken, account, provider);
-
-  const { approved, checkAllowance, approve } = useTokenApproval(signer, fromToken, fskRouterAddress);
+  const { getAmountOut, swap } = useSwap(signer);
 
   useEffect(() => {
-    if (account) checkAllowance(account);
-  }, [account, fromToken]);
+    if (window.ethereum) {
+      const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
+      setProvider(tempProvider);
+      const tempSigner = tempProvider.getSigner();
+      setSigner(tempSigner);
+      tempSigner.getAddress().then(setAccount);
+    }
+  }, []);
 
   useEffect(() => {
-    const getAmount = async () => {
-      if (!amountIn || !swap) return setAmountOut("0");
-      try {
-        const out = await swap.getAmountOut(amountIn, [fromToken, toToken]);
-        setAmountOut(out);
-      } catch (err) {
-        console.error(err);
-        setAmountOut("0");
-      }
+    const fetchOut = async () => {
+      if (!amountIn || !getAmountOut) return;
+      const path = [fromToken, toToken]; // replace with actual token addresses
+      const out = await getAmountOut(amountIn, path);
+      setAmountOut(out);
     };
-    getAmount();
-  }, [amountIn, fromToken, toToken, swap]);
+    fetchOut();
+  }, [amountIn, fromToken, toToken, getAmountOut]);
 
   const handleSwap = async () => {
-    if (!approved) {
-      await approve(amountIn);
-    }
+    if (!amountIn || !amountOut) return;
+    const path = [fromToken, toToken];
     try {
-      await swap.swap(amountIn, amountOut, [fromToken, toToken], account);
+      await swap(amountIn, amountOut, path, account);
       alert("Swap successful!");
       setAmountIn("");
+      setAmountOut("");
     } catch (err) {
       console.error(err);
       alert("Swap failed: " + err.message);
@@ -65,15 +54,21 @@ const Swap = () => {
   };
 
   return (
-    <div className={`swap-page ${theme}`}>
+    <div className="swap-page">
       <header className="swap-header">
         <div className="logo">
           <img src="/assets/logo.svg" alt="FSKSwap" />
           <span>FSKSwap</span>
         </div>
+        <nav>
+          <a href="/swap">Swap</a>
+          <a href="/launchpad">Launchpad</a>
+          <a href="/staking">Staking</a>
+          <a href="/flashswap">FlashSwap</a>
+        </nav>
         <div className="header-right">
-          <WalletConnectButton provider={provider} setSigner={() => {}} />
-          <button onClick={toggleTheme}>{theme === "light" ? "🌞" : "🌙"}</button>
+          <WalletConnectButton provider={provider} setSigner={setSigner} />
+          <ThemeSwitch />
         </div>
       </header>
 
@@ -81,26 +76,28 @@ const Swap = () => {
         <h2>Swap Tokens</h2>
 
         <div className="swap-card">
-          <div className="token-input">
-            <label>From:</label>
-            <input
-              type="number"
-              placeholder="0.0"
-              value={amountIn}
-              onChange={(e) => setAmountIn(e.target.value)}
-            />
-            <p>Balance: {fromBalance}</p>
-          </div>
-
-          <div className="token-input">
-            <label>To:</label>
-            <input type="text" value={amountOut} disabled />
-            <p>Balance: {toBalance}</p>
-          </div>
-
-          <button onClick={handleSwap} disabled={!amountIn || parseFloat(amountIn) <= 0}>
-            {approved ? "Swap" : "Approve & Swap"}
-          </button>
+          <label>From Token</label>
+          <input
+            type="text"
+            value={fromToken}
+            onChange={(e) => setFromToken(e.target.value)}
+            style={{ color: TOKEN_COLORS[fromToken] || "#fff" }}
+          />
+          <label>To Token</label>
+          <input
+            type="text"
+            value={toToken}
+            onChange={(e) => setToToken(e.target.value)}
+            style={{ color: TOKEN_COLORS[toToken] || "#fff" }}
+          />
+          <label>Amount</label>
+          <input
+            type="number"
+            value={amountIn}
+            onChange={(e) => setAmountIn(e.target.value)}
+          />
+          <p>Estimated Output: {amountOut}</p>
+          <button onClick={handleSwap}>Swap</button>
         </div>
       </main>
     </div>
