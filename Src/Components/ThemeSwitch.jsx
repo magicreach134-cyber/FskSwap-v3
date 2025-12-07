@@ -1,12 +1,24 @@
-import { useContext } from "react";
-import { ThemeContext } from "../context/ThemeContext";
+// src/components/ThemeSwitch.jsx
+"use client";
+
+import { useTheme } from "../context/ThemeContext";
 
 const ThemeSwitch = () => {
-  const { theme, toggleTheme } = useContext(ThemeContext);
+  const { theme, toggleTheme } = useTheme();
 
   return (
-    <button onClick={toggleTheme}>
-      {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+    <button
+      onClick={toggleTheme}
+      style={{
+        padding: "6px 10px",
+        borderRadius: "8px",
+        border: "1px solid #ccc",
+        background: theme === "light" ? "#fff" : "#222",
+        color: theme === "light" ? "#000" : "#fff",
+        cursor: "pointer",
+      }}
+    >
+      {theme === "light" ? "🌞 Light" : "🌙 Dark"}
     </button>
   );
 };
