@@ -1,19 +1,25 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../components/WalletConnectButton";
-import ThemeSwitch from "../components/ThemeSwitch";
+import { useTheme } from "../hooks/useTheme";
 import usePresaleSearch from "../hooks/usePresaleSearch";
+import { useDebounce } from "../hooks/useDebounce";
 import "../style/launchpad.css";
 import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../utils/constants";
 
 const Launchpad = () => {
+  const { theme, toggleTheme } = useTheme();
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [presales, setPresales] = useState([]);
   const [userAddress, setUserAddress] = useState("");
+  const [presales, setPresales] = useState([]);
   const [contribution, setContribution] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [showActive, setShowActive] = useState(true); // toggle between active/upcoming
+  const [showActive, setShowActive] = useState(true);
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Initialize ethers provider
   useEffect(() => {
@@ -26,7 +32,7 @@ const Launchpad = () => {
     }
   }, []);
 
-  // Load presales from factory
+  // Fetch presales from factory
   useEffect(() => {
     const fetchPresales = async () => {
       if (!signer) return;
@@ -48,7 +54,6 @@ const Launchpad = () => {
               "function endTime() view returns (uint256)",
               "function contributions(address) view returns (uint256)",
               "function finalized() view returns (bool)",
-              "function claim()",
               "function name() view returns (string)",
               "function symbol() view returns (string)"
             ], signer);
@@ -88,8 +93,7 @@ const Launchpad = () => {
     fetchPresales();
   }, [signer, userAddress]);
 
-  // Filtered presales using search hook
-  const filteredPresales = usePresaleSearch(presales, searchTerm, showActive);
+  const filteredPresales = usePresaleSearch(presales, debouncedSearchTerm, showActive);
 
   const handleContribute = async (presale) => {
     if (!contribution || parseFloat(contribution) <= 0) return alert("Enter a valid amount");
@@ -127,7 +131,7 @@ const Launchpad = () => {
   };
 
   return (
-    <div className="launchpad-page">
+    <div className={`launchpad-page ${theme}`}>
       <header className="launchpad-header">
         <div className="logo">
           <img src="/assets/logo.svg" alt="FSKSwap" />
@@ -141,7 +145,7 @@ const Launchpad = () => {
         </nav>
         <div className="header-right">
           <WalletConnectButton provider={provider} setSigner={setSigner} />
-          <ThemeSwitch />
+          <button onClick={toggleTheme}>{theme === "light" ? "🌞" : "🌙"}</button>
         </div>
       </header>
 
