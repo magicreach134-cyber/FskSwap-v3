@@ -1,34 +1,55 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { FSKRouterABI, fskRouterAddress } from "../utils/constants";
 
-export const useSwap = (signer) => {
+const useSwap = (signer) => {
   const [routerContract, setRouterContract] = useState(null);
 
   useEffect(() => {
     if (signer) {
-      const router = new ethers.Contract(fskRouterAddress, FSKRouterABI, signer);
-      setRouterContract(router);
+      try {
+        const router = new ethers.Contract(fskRouterAddress, FSKRouterABI, signer);
+        setRouterContract(router);
+      } catch (err) {
+        console.error("Failed to initialize router contract:", err);
+      }
     }
   }, [signer]);
 
-  const getAmountOut = async (amountIn, path) => {
-    if (!routerContract) return;
-    const amountOut = await routerContract.getAmountsOut(ethers.utils.parseUnits(amountIn.toString(), 18), path);
-    return ethers.utils.formatUnits(amountOut[amountOut.length - 1], 18);
+  const getAmountOut = async (amountIn, path, decimals = 18) => {
+    if (!routerContract) return null;
+    try {
+      const amountOut = await routerContract.getAmountsOut(
+        ethers.utils.parseUnits(amountIn.toString(), decimals),
+        path
+      );
+      return ethers.utils.formatUnits(amountOut[amountOut.length - 1], decimals);
+    } catch (err) {
+      console.error("getAmountOut error:", err);
+      return null;
+    }
   };
 
-  const swap = async (amountIn, amountOutMin, path, to) => {
-    if (!routerContract) return;
-    const tx = await routerContract.swapExactTokensForTokens(
-      ethers.utils.parseUnits(amountIn.toString(), 18),
-      ethers.utils.parseUnits(amountOutMin.toString(), 18),
-      path,
-      to,
-      Math.floor(Date.now() / 1000) + 60 * 20
-    );
-    return await tx.wait();
+  const swap = async (amountIn, amountOutMin, path, to, decimals = 18) => {
+    if (!routerContract) throw new Error("Router contract not initialized");
+    try {
+      const tx = await routerContract.swapExactTokensForTokens(
+        ethers.utils.parseUnits(amountIn.toString(), decimals),
+        ethers.utils.parseUnits(amountOutMin.toString(), decimals),
+        path,
+        to,
+        Math.floor(Date.now() / 1000) + 60 * 20 // 20 min deadline
+      );
+      return await tx.wait();
+    } catch (err) {
+      console.error("Swap transaction failed:", err);
+      throw err;
+    }
   };
 
-  return { getAmountOut, swap };
+  return { routerContract, getAmountOut, swap };
 };
+
+export default useSwap;
