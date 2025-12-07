@@ -1,3 +1,4 @@
+// src/pages/Launchpad.jsx
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../components/WalletConnectButton";
@@ -11,9 +12,9 @@ const Launchpad = () => {
   const [presales, setPresales] = useState([]);
   const [userAddress, setUserAddress] = useState("");
   const [contribution, setContribution] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState("");
 
-  // Initialize provider
+  // Initialize ethers provider and signer
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
@@ -24,12 +25,16 @@ const Launchpad = () => {
     }
   }, []);
 
-  // Fetch presales from factory
+  // Fetch presales
   useEffect(() => {
     const fetchPresales = async () => {
       if (!signer) return;
       try {
-        const factory = new ethers.Contract(launchpadFactoryAddress, FSKLaunchpadFactoryABI, signer);
+        const factory = new ethers.Contract(
+          launchpadFactoryAddress,
+          FSKLaunchpadFactoryABI,
+          signer
+        );
         const presaleAddresses = await factory.getPresales();
         const presaleDetails = await Promise.all(
           presaleAddresses.map(async (addr) => {
@@ -43,8 +48,8 @@ const Launchpad = () => {
               "function contributions(address) view returns (uint256)",
               "function finalized() view returns (bool)",
               "function claim()",
-              "function contribute() payable"
             ], signer);
+
             const token = await presaleContract.token();
             const softCap = await presaleContract.softCap();
             const hardCap = await presaleContract.hardCap();
@@ -53,6 +58,7 @@ const Launchpad = () => {
             const endTime = await presaleContract.endTime();
             const userContribution = await presaleContract.contributions(userAddress);
             const finalized = await presaleContract.finalized();
+
             return {
               address: addr,
               token,
@@ -78,7 +84,9 @@ const Launchpad = () => {
   const handleContribute = async (presale) => {
     if (!contribution || parseFloat(contribution) <= 0) return alert("Enter a valid amount");
     try {
-      const tx = await presale.contract.contribute({ value: ethers.utils.parseEther(contribution) });
+      const tx = await presale.contract.contribute({
+        value: ethers.utils.parseEther(contribution),
+      });
       await tx.wait();
       alert("Contribution successful!");
       setContribution("");
@@ -108,7 +116,15 @@ const Launchpad = () => {
     return `${days}d ${hours}h ${minutes}m`;
   };
 
-  const filteredPresales = presales.filter(p => p.token.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredPresales = presales.filter(p => 
+    p.token.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const getTokenColor = (token) => {
+    if (token.toLowerCase() === "fsk") return "goldenrod"; // yellow gold
+    if (token.toLowerCase() === "fusdt") return "darkred"; // red gold
+    return "#fff"; // default white
+  };
 
   return (
     <div className="launchpad-page">
@@ -130,18 +146,23 @@ const Launchpad = () => {
       </header>
 
       <main className="launchpad-container">
-        <h2>Presales</h2>
+        <h2>Active & Upcoming Presales</h2>
         <input
           type="text"
           placeholder="Search by token"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="presale-search"
         />
-        {filteredPresales.length === 0 && <p>No presales found.</p>}
+
+        {filteredPresales.length === 0 && <p>No presales available.</p>}
 
         {filteredPresales.map((p, idx) => (
           <div key={idx} className="presale-card">
-            <p><strong>Token:</strong> {p.token}</p>
+            <p>
+              <strong>Token:</strong>{" "}
+              <span style={{ color: getTokenColor(p.token) }}>{p.token}</span>
+            </p>
             <p><strong>Soft Cap:</strong> {ethers.utils.formatEther(p.softCap)}</p>
             <p><strong>Hard Cap:</strong> {ethers.utils.formatEther(p.hardCap)}</p>
             <p><strong>Total Raised:</strong> {ethers.utils.formatEther(p.totalRaised)}</p>
