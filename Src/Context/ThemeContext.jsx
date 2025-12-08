@@ -1,36 +1,42 @@
+// src/context/ThemeContext.jsx
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useEffect, useState } from "react";
 
-// Create context
-const ThemeContext = createContext();
+// If you already have a useTheme hook, this provider will still work with it.
+// This Context exposes: { theme, toggleTheme, setTheme }
+export const ThemeContext = createContext({
+  theme: "light",
+  toggleTheme: () => {},
+  setTheme: () => {},
+});
 
-// Provider component
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState("light");
 
-  // Load theme from localStorage on mount
   useEffect(() => {
-    const storedTheme = localStorage.getItem("theme");
-    if (storedTheme) {
-      setTheme(storedTheme);
-      document.documentElement.setAttribute("data-theme", storedTheme);
+    try {
+      const stored = localStorage.getItem("theme");
+      const initial = stored || "light";
+      setTheme(initial);
+      document.documentElement.setAttribute("data-theme", initial);
+    } catch (e) {
+      // ignore storage errors in environments with no localStorage
     }
   }, []);
 
   const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.setAttribute("data-theme", newTheme);
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    try {
+      localStorage.setItem("theme", next);
+    } catch (e) {}
+    document.documentElement.setAttribute("data-theme", next);
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
 };
-
-// Custom hook for easy access
-export const useTheme = () => useContext(ThemeContext);
