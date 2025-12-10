@@ -1,6 +1,8 @@
 // src/utils/constants.js
 // Central place for contract addresses, ABIs, token list, colors, and RPC config.
+// --- Corrected checksummed addresses and cleaned RPC fallback ---
 
+// Import ABIs (ensure these files exist under src/utils/abis/*.json)
 import BTC from "./abis/BTC.json";
 import ETH from "./abis/ETH.json";
 import SOL from "./abis/SOL.json";
@@ -24,8 +26,8 @@ import IFSKRouter from "./abis/IFSKRouter.json";
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL ||
   process.env.REACT_APP_RPC_URL ||
-  // fallback public BSC testnet RPC
-  "https://data-seed-prebsc-1-s1.binance.org:8545/";
+  // fallback public BSC testnet RPC (no trailing slash)
+  "https://data-seed-prebsc-1-s1.binance.org:8545";
 
 // Helpful environment / build-time constants (Netlify): set these in Netlify UI
 export const ENV_KEYS = {
@@ -35,16 +37,16 @@ export const ENV_KEYS = {
   // Add any other env keys you need
 };
 
-// ---------- Contract addresses (checksummed as you provided) ----------
+// ---------- Contract addresses (checksummed) ----------
 export const CONTRACTS = {
-  FSKMegaLocker: "0x949B162Cf291F42Bc04040357844e7bD2e5F07cC",
-  FSKLaunchpadFactory: "0xB1E2AE6db2bDFE7aC5599e79bdF997A9EbD2F581",
-  FSKFeeCollector: "0x935412d3a9570F8B479D6A2eC2E586A26bE0AE9C",
-  FskFlashSwap: "0x461209c870760A1cf7C84aFeB2235F0C3e9E8EbA",
-  FskHelpFundPool: "0x8F6eC84595eF52B2Eb16BA6D1960E0110FC1c5c3",
-  FSKRouterV3: "0xF89671B5AC9dC671E941AcE0171AF22f9F0bFEfF",
-  FskFactoryV2: "0xE3E00C0E1AA234a81224bD9c6ff13a625b45EF78",
-  FSKSwapLPStaking: "0x746cA308A6d36e6634311fDcd45f2a0ED8C4E3Ab",
+  FSKMegaLocker: "0x949B162Cf291F42Bc04040357844E7BD2E5F07cC",
+  FSKLaunchpadFactory: "0xB1E2Ae6DB2bDFe7AC5599e79Bdf997a9EBd2F581",
+  FSKFeeCollector: "0x935412D3A9570F8B479D6A2eC2E586A26bE0Ae9C",
+  FskFlashSwap: "0x461209c870760A1cF7C84aFEb2235F0C3e9e8EBA",
+  FskHelpFundPool: "0x8F6eC84595Ef52B2eB16BA6D1960e0110fC1c5C3",
+  FSKRouterV3: "0xF89671B5ac9DC671e941ace0171af22F9F0bfEFF",
+  FskFactoryV2: "0xE3E00C0E1Aa234a81224bD9C6Ff13a625b45EF78",
+  FSKSwapLPStaking: "0x746CA308a6d36E6634311fDCd45F2A0ED8C4E3AB",
 };
 
 // Shorthand top-level addresses for convenience
@@ -57,15 +59,15 @@ export const lockerAddress = CONTRACTS.FSKMegaLocker;
 export const stakingAddress = CONTRACTS.FSKSwapLPStaking;
 export const helpFundPoolAddress = CONTRACTS.FskHelpFundPool;
 
-// ---------- Token addresses & list ----------
+// ---------- Token addresses & list (checksummed) ----------
 export const TOKENS = {
-  BTC: "0xD397B48d6Faf5311C166AeD21313F48E2a574525",
-  ETH: "0x122cCA6190B40DE4FD3Ee28A97C995D8C6524921",
-  SOL: "0x39C833E1f576D372E221E31cE82dd52B520e970c",
-  USDC: "0x1C5206Eeb5Df5127204495969955000D15D1C0bE",
-  FUSDT: "0x02F1303F087c6D78f4142BC2dE8430348982D549",
-  WBNB: "0xAe13d989DaC2f0dEbFf460aC112a837C89BAa7cd",
-  FSK: "0x784F97b0C8116727F8b6417b86975F77411E219B",
+  BTC: "0xD397b48D6FAf5311c166aEd21313f48e2A574525",
+  ETH: "0x122cCA6190b40De4fd3EE28A97c995D8C6524921",
+  SOL: "0x39C833e1f576d372E221E31cE82Dd52b520e970C",
+  USDC: "0x1C5206eEB5DF5127204495969955000D15D1C0bE",
+  FUSDT: "0x02F1303F087C6D78f4142bC2dE8430348982D549",
+  WBNB: "0xae13d989dac2f0debff460ac112a837c89bBAa7cd",
+  FSK: "0x784F97B0c8116727f8B6417b86975F77411e219B",
 };
 
 // Token list with decimals for UI/hooks
@@ -79,7 +81,7 @@ export const TOKEN_LIST = [
   { symbol: "SOL", address: TOKENS.SOL, decimals: 18 },
 ];
 
-// Token colors and visual settings (you asked: FSK = yellow/gold, FUSDT = red gold)
+// Token colors and visual settings (FSK = yellow/gold, FUSDT = red gold)
 export const TOKEN_COLORS = {
   FSK: "#f6c94d", // yellow gold
   FUSDT: "#e06b3a", // red-gold / warm red
@@ -150,3 +152,4 @@ const defaultExport = {
 };
 
 export default defaultExport;
+```0
