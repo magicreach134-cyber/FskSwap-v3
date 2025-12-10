@@ -4,37 +4,40 @@ import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../../components/WalletConnectButton";
 import ThemeSwitch from "../../components/ThemeSwitch";
-import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../../utils/constants";
+import {
+  launchpadFactoryAddress,
+  FSKLaunchpadFactoryABI,
+} from "../../utils/constants";
 import "../../styles/launchpad.css";
 
 const CreatePresale = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [userAddress, setUserAddress] = useState("");
+  const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [userAddress, setUserAddress] = useState<string>("");
 
-  const [tokenAddress, setTokenAddress] = useState("");
-  const [softCap, setSoftCap] = useState("");
-  const [hardCap, setHardCap] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [tokenAddress, setTokenAddress] = useState<string>("");
+  const [softCap, setSoftCap] = useState<string>("");
+  const [hardCap, setHardCap] = useState<string>("");
+  const [startTime, setStartTime] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
+  // Initialize wallet provider and signer
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
       setProvider(tempProvider);
       const tempSigner = tempProvider.getSigner();
       setSigner(tempSigner);
-      tempSigner.getAddress().then(setUserAddress);
+      tempSigner.getAddress().then(setUserAddress).catch(() => setUserAddress(""));
     }
   }, []);
 
   const handleCreatePresale = async () => {
     if (!tokenAddress || !softCap || !hardCap || !startTime || !endTime) {
-      return alert("Please fill in all fields");
+      return alert("Please fill in all fields.");
     }
-
-    if (!signer) return alert("Connect your wallet first");
+    if (!signer) return alert("Connect your wallet first.");
 
     try {
       setLoading(true);
@@ -48,10 +51,11 @@ const CreatePresale = () => {
       const softCapWei = ethers.utils.parseEther(softCap);
       const hardCapWei = ethers.utils.parseEther(hardCap);
 
-      // Convert start/end time to unix timestamp
+      // Convert start/end time to UNIX timestamps
       const startTimestamp = Math.floor(new Date(startTime).getTime() / 1000);
       const endTimestamp = Math.floor(new Date(endTime).getTime() / 1000);
 
+      // Call createPresale
       const tx = await factory.createPresale(
         tokenAddress,
         softCapWei,
@@ -60,17 +64,22 @@ const CreatePresale = () => {
         endTimestamp
       );
 
-      await tx.wait();
-      alert("Presale created successfully!");
+      const receipt = await tx.wait();
+
+      // Fetch newly created presale address
+      const newPresaleAddress = receipt.events?.[0]?.args?.presale;
+      console.log("New presale address:", newPresaleAddress);
+      alert(`Presale created successfully! Address: ${newPresaleAddress}`);
+
       // Reset form
       setTokenAddress("");
       setSoftCap("");
       setHardCap("");
       setStartTime("");
       setEndTime("");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to create presale: " + err.message);
+    } catch (err: any) {
+      console.error("Create presale error:", err);
+      alert("Failed to create presale. See console for details.");
     } finally {
       setLoading(false);
     }
@@ -145,8 +154,11 @@ const CreatePresale = () => {
             />
           </label>
 
-          <button onClick={handleCreatePresale} disabled={loading}>
-            {loading ? "Creating..." : "Create Presale"}
+          <button
+            onClick={handleCreatePresale}
+            disabled={loading || !signer}
+          >
+            {loading ? "Creating..." : !signer ? "Connect Wallet" : "Create Presale"}
           </button>
         </div>
       </main>
