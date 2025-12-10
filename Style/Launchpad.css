@@ -1,6 +1,6 @@
 /* launchpad.css */
 
-/* General page layout */
+/* ---------------- General Page Layout ---------------- */
 .launchpad-page {
   font-family: "Inter", sans-serif;
   background-color: #f9f9fb;
@@ -9,7 +9,7 @@
   flex-direction: column;
 }
 
-/* Header */
+/* ---------------- Header ---------------- */
 .launchpad-header {
   display: flex;
   justify-content: space-between;
@@ -17,6 +17,7 @@
   padding: 1rem 2rem;
   background-color: #1a1b1f;
   color: #fff;
+  flex-wrap: wrap;
 }
 
 .launchpad-header .logo {
@@ -25,9 +26,15 @@
   gap: 0.5rem;
 }
 
+.launchpad-header nav {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
 .launchpad-header nav a {
   color: #fff;
-  margin-left: 1.5rem;
   text-decoration: none;
   font-weight: 500;
 }
@@ -36,9 +43,10 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  margin-top: 0.5rem;
 }
 
-/* Main container */
+/* ---------------- Main Container ---------------- */
 .launchpad-container {
   flex: 1;
   padding: 2rem;
@@ -46,12 +54,13 @@
   margin: 0 auto;
 }
 
-/* Header actions (title + create button) */
+/* ---------------- Header Actions ---------------- */
 .launchpad-header-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
 }
 
 .create-presale-btn {
@@ -69,7 +78,7 @@
   background-color: #4338ca;
 }
 
-/* Presale list */
+/* ---------------- Presale List ---------------- */
 .presale-list {
   list-style: none;
   padding: 0;
@@ -98,7 +107,7 @@
   font-weight: 500;
 }
 
-/* Create Presale Form */
+/* ---------------- Create Presale Form ---------------- */
 .presale-form {
   display: flex;
   flex-direction: column;
@@ -137,4 +146,57 @@
 
 .presale-form button:hover {
   background-color: #4338ca;
+}
+
+/* ---------------- Responsive Styling ---------------- */
+@media (max-width: 1024px) {
+  .launchpad-header {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .launchpad-header nav {
+    margin-top: 1rem;
+  }
+
+  .launchpad-header-right {
+    margin-top: 1rem;
+  }
+
+  .launchpad-header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .launchpad-container {
+    padding: 1rem;
+  }
+
+  .presale-form {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .create-presale-btn,
+  .presale-form button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .presale-item {
+    padding: 0.75rem 1rem;
+  }
+
+  .launchpad-header nav {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .launchpad-header-right {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
