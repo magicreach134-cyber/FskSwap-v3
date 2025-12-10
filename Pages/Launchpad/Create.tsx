@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import Link from "next/link";
 import WalletConnectButton from "../../components/WalletConnectButton";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import {
@@ -10,80 +11,47 @@ import {
 } from "../../utils/constants";
 import "../../styles/launchpad.css";
 
-const CreatePresale = () => {
+const LaunchpadDashboard = () => {
   const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
-  const [userAddress, setUserAddress] = useState<string>("");
+  const [userAddress, setUserAddress] = useState("");
+  const [presales, setPresales] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const [tokenAddress, setTokenAddress] = useState<string>("");
-  const [softCap, setSoftCap] = useState<string>("");
-  const [hardCap, setHardCap] = useState<string>("");
-  const [startTime, setStartTime] = useState<string>("");
-  const [endTime, setEndTime] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-
-  // Initialize wallet provider and signer
+  // Initialize provider and signer
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
       setProvider(tempProvider);
       const tempSigner = tempProvider.getSigner();
       setSigner(tempSigner);
-      tempSigner.getAddress().then(setUserAddress).catch(() => setUserAddress(""));
+      tempSigner.getAddress().then(setUserAddress);
     }
   }, []);
 
-  const handleCreatePresale = async () => {
-    if (!tokenAddress || !softCap || !hardCap || !startTime || !endTime) {
-      return alert("Please fill in all fields.");
-    }
-    if (!signer) return alert("Connect your wallet first.");
+  // Fetch all presales
+  useEffect(() => {
+    const fetchPresales = async () => {
+      if (!signer) return;
 
-    try {
-      setLoading(true);
-      const factory = new ethers.Contract(
-        launchpadFactoryAddress,
-        FSKLaunchpadFactoryABI,
-        signer
-      );
+      try {
+        setLoading(true);
+        const factory = new ethers.Contract(
+          launchpadFactoryAddress,
+          FSKLaunchpadFactoryABI,
+          signer
+        );
+        const presalesList: string[] = await factory.getPresales();
+        setPresales(presalesList);
+      } catch (err) {
+        console.error("Error fetching presales:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      // Convert caps to wei
-      const softCapWei = ethers.utils.parseEther(softCap);
-      const hardCapWei = ethers.utils.parseEther(hardCap);
-
-      // Convert start/end time to UNIX timestamps
-      const startTimestamp = Math.floor(new Date(startTime).getTime() / 1000);
-      const endTimestamp = Math.floor(new Date(endTime).getTime() / 1000);
-
-      // Call createPresale
-      const tx = await factory.createPresale(
-        tokenAddress,
-        softCapWei,
-        hardCapWei,
-        startTimestamp,
-        endTimestamp
-      );
-
-      const receipt = await tx.wait();
-
-      // Fetch newly created presale address
-      const newPresaleAddress = receipt.events?.[0]?.args?.presale;
-      console.log("New presale address:", newPresaleAddress);
-      alert(`Presale created successfully! Address: ${newPresaleAddress}`);
-
-      // Reset form
-      setTokenAddress("");
-      setSoftCap("");
-      setHardCap("");
-      setStartTime("");
-      setEndTime("");
-    } catch (err: any) {
-      console.error("Create presale error:", err);
-      alert("Failed to create presale. See console for details.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchPresales();
+  }, [signer]);
 
   return (
     <div className="launchpad-page">
@@ -105,65 +73,31 @@ const CreatePresale = () => {
       </header>
 
       <main className="launchpad-container">
-        <h2>Create Presale</h2>
-
-        <div className="presale-form">
-          <label>
-            Token Address:
-            <input
-              type="text"
-              value={tokenAddress}
-              onChange={(e) => setTokenAddress(e.target.value)}
-              placeholder="0x..."
-            />
-          </label>
-
-          <label>
-            Soft Cap (BNB):
-            <input
-              type="number"
-              value={softCap}
-              onChange={(e) => setSoftCap(e.target.value)}
-            />
-          </label>
-
-          <label>
-            Hard Cap (BNB):
-            <input
-              type="number"
-              value={hardCap}
-              onChange={(e) => setHardCap(e.target.value)}
-            />
-          </label>
-
-          <label>
-            Start Time:
-            <input
-              type="datetime-local"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-            />
-          </label>
-
-          <label>
-            End Time:
-            <input
-              type="datetime-local"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-            />
-          </label>
-
-          <button
-            onClick={handleCreatePresale}
-            disabled={loading || !signer}
-          >
-            {loading ? "Creating..." : !signer ? "Connect Wallet" : "Create Presale"}
-          </button>
+        <div className="launchpad-header-actions">
+          <h2>All Presales</h2>
+          <Link href="/launchpad/create">
+            <button className="create-presale-btn">Create Presale</button>
+          </Link>
         </div>
+
+        {loading ? (
+          <p>Loading presales...</p>
+        ) : presales.length === 0 ? (
+          <p>No presales found.</p>
+        ) : (
+          <ul className="presale-list">
+            {presales.map((address) => (
+              <li key={address} className="presale-item">
+                <Link href={`/launchpad/project/${address}`}>
+                  <span>Presale: {address}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </main>
     </div>
   );
 };
 
-export default CreatePresale;
+export default LaunchpadDashboard;
