@@ -1,24 +1,24 @@
 // pages/locker.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import WalletConnectButton from "../components/WalletConnectButton";
-import ThemeSwitch from "../components/ThemeSwitch";
 import useLocker from "../hooks/useLocker";
+import WalletConnectButton from "../components/WalletConnectButton";
 import { TOKEN_COLORS } from "../utils/constants";
-import "../styles/swap.css"; // reuse swap styles
 
 const LockerPage = () => {
   const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
   const [account, setAccount] = useState<string>("");
-  const [locks, setLocks] = useState<number[]>([]);
-  const [lockDetails, setLockDetails] = useState<any[]>([]);
-  const [withdrawAmount, setWithdrawAmount] = useState<string>("");
 
-  const { getOwnerLocks, getLock, withdrawFromLock } = useLocker(signer);
+  const { lockerContract, getOwnerLocks, getLock, getBeneficiaryVestings, getVesting, withdrawFromLock } =
+    useLocker(signer);
 
+  const [locks, setLocks] = useState<any[]>([]);
+  const [vestings, setVestings] = useState<any[]>([]);
+
+  // Initialize provider and signer
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
@@ -29,89 +29,94 @@ const LockerPage = () => {
     }
   }, []);
 
+  // Fetch locks and vestings
   useEffect(() => {
-    const fetchLocks = async () => {
-      if (!account || !getOwnerLocks) return;
-      const ids = await getOwnerLocks(account);
-      setLocks(ids);
+    if (!lockerContract || !account) return;
 
-      const details = await Promise.all(ids.map((id) => getLock(id)));
-      setLockDetails(details);
+    const fetchData = async () => {
+      const ownerLockIds = await getOwnerLocks(account);
+      const ownerLocks = await Promise.all(ownerLockIds.map((id) => getLock(id)));
+      setLocks(ownerLocks.filter(Boolean));
+
+      const vestIds = await getBeneficiaryVestings(account);
+      const beneficiaryVestings = await Promise.all(vestIds.map((id) => getVesting(id)));
+      setVestings(beneficiaryVestings.filter(Boolean));
     };
-    fetchLocks();
-  }, [account, getOwnerLocks, getLock]);
 
-  const handleWithdraw = async (lockId: number) => {
-    if (!withdrawAmount) return;
+    fetchData();
+  }, [lockerContract, account]);
+
+  const handleWithdraw = async (lockId: number, token: string, amount: string) => {
     try {
-      await withdrawFromLock(lockId, account, withdrawAmount);
-      alert(`Successfully withdrew ${withdrawAmount} tokens from lock ${lockId}`);
-      setWithdrawAmount("");
-      // Refresh lock details
-      const details = await Promise.all(locks.map((id) => getLock(id)));
-      setLockDetails(details);
+      await withdrawFromLock(lockId, account, amount);
+      alert("Withdrawal successful!");
+      // Refresh locks
+      const updatedLock = await getLock(lockId);
+      setLocks((prev) => prev.map((l) => (l.lockId === lockId ? updatedLock : l)));
     } catch (err: any) {
-      alert("Withdraw failed: " + err.message);
+      alert("Withdrawal failed: " + err.message);
     }
   };
 
   return (
-    <div className="swap-page">
-      <header className="swap-header">
-        <div className="logo">
-          <img src="/assets/logo.svg" alt="FSKSwap" />
-          <span>FSKSwap Locker</span>
-        </div>
-        <nav>
-          <a href="/swap">Swap</a>
-          <a href="/launchpad">Launchpad</a>
-          <a href="/staking">Staking</a>
-          <a href="/flashswap">FlashSwap</a>
-          <a href="/locker">Locker</a>
-        </nav>
-        <div className="header-right">
-          <WalletConnectButton provider={provider} setSigner={setSigner} />
-          <ThemeSwitch />
-        </div>
+    <div className="locker-page">
+      <header className="locker-header">
+        <h1>FSKMegaLocker Dashboard</h1>
+        <WalletConnectButton provider={provider} setSigner={setSigner} />
       </header>
 
-      <main className="swap-container">
-        <h2>Your Locked Tokens</h2>
+      <main className="locker-container">
+        <section className="locks-section">
+          <h2>Your Locks</h2>
+          {locks.length === 0 && <p>No locks found.</p>}
+          {locks.map((lock, idx) => (
+            <div key={idx} className="lock-card">
+              <p>
+                <strong>Token:</strong>{" "}
+                <span style={{ color: TOKEN_COLORS[lock.token] || "#fff" }}>{lock.token}</span>
+              </p>
+              <p>
+                <strong>Amount:</strong> {lock.amount}
+              </p>
+              <p>
+                <strong>Unlock Time:</strong> {new Date(lock.unlockTime * 1000).toLocaleString()}
+              </p>
+              <p>
+                <strong>Withdrawn:</strong> {lock.withdrawn ? "Yes" : "No"}
+              </p>
+              {!lock.withdrawn && (
+                <button onClick={() => handleWithdraw(lock.lockId, lock.token, lock.amount)}>
+                  Withdraw
+                </button>
+              )}
+            </div>
+          ))}
+        </section>
 
-        {lockDetails.length === 0 && <p>No locks found for {account}</p>}
-
-        {lockDetails.map((lock, index) => (
-          <div key={locks[index]} className="swap-card">
-            <p>
-              <strong>Lock ID:</strong> {locks[index]}
-            </p>
-            <p>
-              <strong>Token:</strong>{" "}
-              <span style={{ color: TOKEN_COLORS[lock.token] || "#fff" }}>{lock.token}</span>
-            </p>
-            <p>
-              <strong>Amount:</strong> {lock.amount}
-            </p>
-            <p>
-              <strong>Unlock Time:</strong>{" "}
-              {new Date(lock.unlockTime * 1000).toLocaleString()}
-            </p>
-            <p>
-              <strong>Withdrawn:</strong> {lock.withdrawn ? "Yes" : "No"}
-            </p>
-            {!lock.withdrawn && (
-              <>
-                <input
-                  type="number"
-                  placeholder="Amount to withdraw"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                />
-                <button onClick={() => handleWithdraw(locks[index])}>Withdraw</button>
-              </>
-            )}
-          </div>
-        ))}
+        <section className="vestings-section">
+          <h2>Your Vestings</h2>
+          {vestings.length === 0 && <p>No vestings found.</p>}
+          {vestings.map((v, idx) => (
+            <div key={idx} className="vesting-card">
+              <p>
+                <strong>Token:</strong>{" "}
+                <span style={{ color: TOKEN_COLORS[v.token] || "#fff" }}>{v.token}</span>
+              </p>
+              <p>
+                <strong>Amount:</strong> {v.amount}
+              </p>
+              <p>
+                <strong>Start:</strong> {new Date(v.start * 1000).toLocaleString()}
+              </p>
+              <p>
+                <strong>Duration:</strong> {v.duration} seconds
+              </p>
+              <p>
+                <strong>Claimed:</strong> {v.claimed}
+              </p>
+            </div>
+          ))}
+        </section>
       </main>
     </div>
   );
