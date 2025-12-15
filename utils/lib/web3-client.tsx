@@ -1,25 +1,17 @@
-import { Contract, ethers } from 'ethers';
-import erc20Abi from '@/lib/abis/erc20.json';
-import routerAbi from '@/lib/abis/router.json';
-import factoryAbi from '@/lib/abis/factory.json';
+import { ethers } from "ethers";
+import { routerAddress, FSKRouterABI, factoryAddress, FSKFactoryABI } from "@/utils/contracts";
 
-export const getErc20Contract = (
-  tokenAddress: string,
-  signerOrProvider: ethers.Signer | ethers.providers.Provider
-) => {
-  return new Contract(tokenAddress, erc20Abi, signerOrProvider);
+export const getProvider = () => {
+  if (window.ethereum) return new ethers.providers.Web3Provider(window.ethereum);
+  throw new Error("No Ethereum provider found");
 };
 
-export const getRouterContract = (
-  routerAddress: string,
-  signerOrProvider: ethers.Signer | ethers.providers.Provider
-) => {
-  return new Contract(routerAddress, routerAbi, signerOrProvider);
+export const getSigner = (provider: ethers.providers.Web3Provider) => provider.getSigner();
+
+export const getRouterContract = (provider: ethers.providers.Provider | ethers.Signer) => {
+  return new ethers.Contract(routerAddress, FSKRouterABI, provider);
 };
 
-export const getFactoryContract = (
-  factoryAddress: string,
-  signerOrProvider: ethers.Signer | ethers.providers.Provider
-) => {
-  return new Contract(factoryAddress, factoryAbi, signerOrProvider);
+export const getFactoryContract = (provider: ethers.providers.Provider | ethers.Signer) => {
+  return new ethers.Contract(factoryAddress, FSKFactoryABI, provider);
 };
