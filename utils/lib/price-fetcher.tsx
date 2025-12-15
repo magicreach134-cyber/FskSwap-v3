@@ -1,4 +1,18 @@
-export const getPrice = async (token: string) => {
-  // Placeholder: implement your oracle/API fetch
-  return 1;
+import { BigNumber, ethers } from 'ethers';
+import { getRouterContract } from '@/lib/web3-client';
+
+export const getAmountOut = async (
+  routerAddress: string,
+  provider: ethers.providers.Provider,
+  amountIn: BigNumber,
+  path: string[]
+): Promise<BigNumber> => {
+  const router = getRouterContract(routerAddress, provider);
+
+  const amounts: BigNumber[] = await router.getAmountsOut(
+    amountIn,
+    path
+  );
+
+  return amounts[amounts.length - 1];
 };
