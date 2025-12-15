@@ -1,0 +1,112 @@
+[
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_factory", "type": "address" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "tokenBorrow", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "tokenTarget", "type": "address" }
+    ],
+    "name": "FlashswapNoProfit",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "tokenBorrow", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "tokenTarget", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "profit", "type": "uint256" },
+      { "indexed": false, "internalType": "address", "name": "routerUsed", "type": "address" }
+    ],
+    "name": "FlashswapSuccess",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "address", "name": "token", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "feed", "type": "address" }
+    ],
+    "name": "PriceFeedUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "internalType": "address[]", "name": "routers", "type": "address[]" },
+      { "internalType": "address[]", "name": "path", "type": "address[]" }
+    ],
+    "name": "estimateBestRouter",
+    "outputs": [
+      { "internalType": "uint256", "name": "maxProfit", "type": "uint256" },
+      { "internalType": "address", "name": "bestRouter", "type": "address" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "tokenBorrow", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "internalType": "address", "name": "tokenTarget", "type": "address" },
+      { "internalType": "address[]", "name": "routers", "type": "address[]" },
+      { "internalType": "address[]", "name": "path", "type": "address[]" }
+    ],
+    "name": "executeFlashSwap",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "factory",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "", "type": "address" },
+      { "internalType": "uint256", "name": "amount0", "type": "uint256" },
+      { "internalType": "uint256", "name": "amount1", "type": "uint256" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "fskCall",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "token", "type": "address" }],
+    "name": "getPrice",
+    "outputs": [{ "internalType": "uint256", "name": "price", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "maxSlippage",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "minProfit",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "tokenPriceFeeds",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
