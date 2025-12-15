@@ -1,98 +1,92 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../components/WalletConnectButton";
 import ThemeSwitch from "../components/ThemeSwitch";
 import { useSwap } from "../hooks/useSwap";
 import { TOKEN_COLORS } from "../utils/constants";
-import { TOKENS } from "../utils/tokens";
 import "../styles/swap.css";
+import ERC20ABI from "../utils/abis/ERC20.json";
 
 const Swap = () => {
   const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
   const [account, setAccount] = useState<string>("");
-
-  const [amountIn, setAmountIn] = useState("");
-  const [amountOut, setAmountOut] = useState("");
-  const [fromToken, setFromToken] = useState("FSK");
-  const [toToken, setToToken] = useState("FUSDT");
+  const [amountIn, setAmountIn] = useState<string>("");
+  const [amountOut, setAmountOut] = useState<string>("");
+  const [fromToken, setFromToken] = useState<string>("FSK");
+  const [toToken, setToToken] = useState<string>("FUSDT");
 
   const { getAmountOut, swap } = useSwap(signer);
 
-  /* ---------- Init provider ---------- */
   useEffect(() => {
-    if (!window.ethereum) return;
-
-    const p = new ethers.providers.Web3Provider(window.ethereum);
-    setProvider(p);
+    if (window.ethereum) {
+      const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
+      setProvider(tempProvider);
+      const tempSigner = tempProvider.getSigner();
+      setSigner(tempSigner);
+      tempSigner.getAddress().then(setAccount);
+    }
   }, []);
 
-  /* ---------- Load account ---------- */
-  useEffect(() => {
-    if (!provider) return;
+  // Helper: fetch token decimals
+  const getTokenDecimals = async (tokenAddress: string) => {
+    if (!signer) return 18;
+    try {
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20ABI, signer);
+      return await tokenContract.decimals();
+    } catch (err) {
+      console.error("getTokenDecimals error:", err);
+      return 18;
+    }
+  };
 
-    provider.listAccounts().then((accounts) => {
-      if (accounts.length > 0) {
-        setSigner(provider.getSigner());
-        setAccount(accounts[0]);
-      }
-    });
-  }, [provider]);
-
-  /* ---------- Quote output ---------- */
   useEffect(() => {
-    const fetchQuote = async () => {
+    const fetchOut = async () => {
       if (!amountIn || !getAmountOut) return;
-      if (!TOKENS[fromToken] || !TOKENS[toToken]) return;
 
-      try {
-        const amountParsed = ethers.utils.parseUnits(
-          amountIn,
-          TOKENS[fromToken].decimals
-        );
+      // Replace these with actual token addresses mapping
+      const tokenAddressMap: Record<string, string> = {
+        FSK: "0xYourFSKAddress",
+        FUSDT: "0xYourFUSDTAddress",
+        BTC: "0xYourBTCAddress",
+      };
 
-        const path = [
-          TOKENS[fromToken].address,
-          TOKENS[toToken].address,
-        ];
+      const path = [tokenAddressMap[fromToken], tokenAddressMap[toToken]];
 
-        const out = await getAmountOut(amountParsed, path);
+      const decimalsIn = await getTokenDecimals(path[0]);
+      const decimalsOut = await getTokenDecimals(path[1]);
 
-        setAmountOut(
-          ethers.utils.formatUnits(out, TOKENS[toToken].decimals)
-        );
-      } catch {
-        setAmountOut("");
-      }
+      const out = await getAmountOut(amountIn, path, decimalsIn);
+      setAmountOut(out ? parseFloat(out).toFixed(decimalsOut) : "");
     };
+    fetchOut();
+  }, [amountIn, fromToken, toToken, getAmountOut, signer]);
 
-    fetchQuote();
-  }, [amountIn, fromToken, toToken, getAmountOut]);
-
-  /* ---------- Execute swap ---------- */
   const handleSwap = async () => {
-    if (!signer || !account) return;
     if (!amountIn || !amountOut) return;
 
-    const amountParsed = ethers.utils.parseUnits(
-      amountIn,
-      TOKENS[fromToken].decimals
-    );
+    const tokenAddressMap: Record<string, string> = {
+      FSK: "0xYourFSKAddress",
+      FUSDT: "0xYourFUSDTAddress",
+      BTC: "0xYourBTCAddress",
+    };
 
-    const minOut = ethers.utils.parseUnits(
-      amountOut,
-      TOKENS[toToken].decimals
-    );
+    const path = [tokenAddressMap[fromToken], tokenAddressMap[toToken]];
 
-    const path = [
-      TOKENS[fromToken].address,
-      TOKENS[toToken].address,
-    ];
+    const decimalsIn = await getTokenDecimals(path[0]);
+    const decimalsOut = await getTokenDecimals(path[1]);
 
-    await swap(amountParsed, minOut, path, account);
-
-    setAmountIn("");
-    setAmountOut("");
+    try {
+      await swap(amountIn, amountOut, path, account, decimalsIn);
+      alert("Swap successful!");
+      setAmountIn("");
+      setAmountOut("");
+    } catch (err: any) {
+      console.error(err);
+      alert("Swap failed: " + err.message);
+    }
   };
 
   return (
@@ -102,14 +96,12 @@ const Swap = () => {
           <img src="/assets/logo.svg" alt="FSKSwap" />
           <span>FSKSwap</span>
         </div>
-
         <nav>
           <a href="/swap">Swap</a>
           <a href="/launchpad">Launchpad</a>
           <a href="/staking">Staking</a>
           <a href="/flashswap">FlashSwap</a>
         </nav>
-
         <div className="header-right">
           <WalletConnectButton provider={provider} setSigner={setSigner} />
           <ThemeSwitch />
@@ -120,15 +112,17 @@ const Swap = () => {
         <h2>Swap Tokens</h2>
 
         <div className="swap-card">
-          <label>From</label>
+          <label>From Token</label>
           <input
+            type="text"
             value={fromToken}
             onChange={(e) => setFromToken(e.target.value)}
             style={{ color: TOKEN_COLORS[fromToken] || "#fff" }}
           />
 
-          <label>To</label>
+          <label>To Token</label>
           <input
+            type="text"
             value={toToken}
             onChange={(e) => setToToken(e.target.value)}
             style={{ color: TOKEN_COLORS[toToken] || "#fff" }}
@@ -142,10 +136,7 @@ const Swap = () => {
           />
 
           <p>Estimated Output: {amountOut}</p>
-
-          <button onClick={handleSwap} disabled={!account}>
-            Swap
-          </button>
+          <button onClick={handleSwap}>Swap</button>
         </div>
       </main>
     </div>
