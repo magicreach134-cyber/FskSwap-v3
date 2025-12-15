@@ -1,0 +1,9 @@
+import Image from "next/image";
+
+<Image
+  src="/logo.png"          // or "/assets/logo.png"
+  alt="FSKSwap"
+  width={120}
+  height={120}
+  priority
+/>
