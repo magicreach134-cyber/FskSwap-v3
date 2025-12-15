@@ -1,4 +1,4 @@
-// src/app/router.jsx
+// app/router.jsx
 import React from "react";
 import { ThemeProvider } from "../context/ThemeContext";
 import Swap from "../pages/Swap";
