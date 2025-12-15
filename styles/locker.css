@@ -1,0 +1,86 @@
+/* styles/locker.css */
+
+.locker-page {
+  padding: 2rem;
+  background-color: #121212;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+}
+
+.locker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.locker-header h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.locker-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.locks-section,
+.vestings-section {
+  flex: 1;
+  min-width: 320px;
+}
+
+.locks-section h2,
+.vestings-section h2 {
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #333;
+  padding-bottom: 0.5rem;
+}
+
+.lock-card,
+.vesting-card {
+  background: #1e1e1e;
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  margin-bottom: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lock-card:hover,
+.vesting-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7);
+}
+
+.lock-card p,
+.vesting-card p {
+  margin: 0.3rem 0;
+  font-size: 0.95rem;
+}
+
+.lock-card button {
+  margin-top: 0.7rem;
+  background: linear-gradient(90deg, #ff7a00, #ffb300);
+  color: #000;
+  font-weight: 600;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lock-card button:hover {
+  background: linear-gradient(90deg, #ff9500, #ffd200);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .locker-container {
+    flex-direction: column;
+  }
+}
