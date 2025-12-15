@@ -1,17 +1,17 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import WalletConnectButton from "../components/WalletConnectButton";
 import ThemeSwitch from "../components/ThemeSwitch";
 import { useSwap } from "../hooks/useSwap";
 import { TOKEN_COLORS } from "../utils/constants";
+import { TOKENS } from "../utils/tokens";
 import "../styles/swap.css";
 
 const Swap = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [account, setAccount] = useState("");
+  const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [account, setAccount] = useState<string>("");
+
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
   const [fromToken, setFromToken] = useState("FSK");
@@ -19,38 +19,80 @@ const Swap = () => {
 
   const { getAmountOut, swap } = useSwap(signer);
 
+  /* ---------- Init provider ---------- */
   useEffect(() => {
-    if (window.ethereum) {
-      const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
-      setProvider(tempProvider);
-      const tempSigner = tempProvider.getSigner();
-      setSigner(tempSigner);
-      tempSigner.getAddress().then(setAccount);
-    }
+    if (!window.ethereum) return;
+
+    const p = new ethers.providers.Web3Provider(window.ethereum);
+    setProvider(p);
   }, []);
 
+  /* ---------- Load account ---------- */
   useEffect(() => {
-    const fetchOut = async () => {
+    if (!provider) return;
+
+    provider.listAccounts().then((accounts) => {
+      if (accounts.length > 0) {
+        setSigner(provider.getSigner());
+        setAccount(accounts[0]);
+      }
+    });
+  }, [provider]);
+
+  /* ---------- Quote output ---------- */
+  useEffect(() => {
+    const fetchQuote = async () => {
       if (!amountIn || !getAmountOut) return;
-      const path = [fromToken, toToken]; // replace with actual token addresses
-      const out = await getAmountOut(amountIn, path);
-      setAmountOut(out);
+      if (!TOKENS[fromToken] || !TOKENS[toToken]) return;
+
+      try {
+        const amountParsed = ethers.utils.parseUnits(
+          amountIn,
+          TOKENS[fromToken].decimals
+        );
+
+        const path = [
+          TOKENS[fromToken].address,
+          TOKENS[toToken].address,
+        ];
+
+        const out = await getAmountOut(amountParsed, path);
+
+        setAmountOut(
+          ethers.utils.formatUnits(out, TOKENS[toToken].decimals)
+        );
+      } catch {
+        setAmountOut("");
+      }
     };
-    fetchOut();
+
+    fetchQuote();
   }, [amountIn, fromToken, toToken, getAmountOut]);
 
+  /* ---------- Execute swap ---------- */
   const handleSwap = async () => {
+    if (!signer || !account) return;
     if (!amountIn || !amountOut) return;
-    const path = [fromToken, toToken];
-    try {
-      await swap(amountIn, amountOut, path, account);
-      alert("Swap successful!");
-      setAmountIn("");
-      setAmountOut("");
-    } catch (err) {
-      console.error(err);
-      alert("Swap failed: " + err.message);
-    }
+
+    const amountParsed = ethers.utils.parseUnits(
+      amountIn,
+      TOKENS[fromToken].decimals
+    );
+
+    const minOut = ethers.utils.parseUnits(
+      amountOut,
+      TOKENS[toToken].decimals
+    );
+
+    const path = [
+      TOKENS[fromToken].address,
+      TOKENS[toToken].address,
+    ];
+
+    await swap(amountParsed, minOut, path, account);
+
+    setAmountIn("");
+    setAmountOut("");
   };
 
   return (
@@ -60,12 +102,14 @@ const Swap = () => {
           <img src="/assets/logo.svg" alt="FSKSwap" />
           <span>FSKSwap</span>
         </div>
+
         <nav>
           <a href="/swap">Swap</a>
           <a href="/launchpad">Launchpad</a>
           <a href="/staking">Staking</a>
           <a href="/flashswap">FlashSwap</a>
         </nav>
+
         <div className="header-right">
           <WalletConnectButton provider={provider} setSigner={setSigner} />
           <ThemeSwitch />
@@ -76,28 +120,32 @@ const Swap = () => {
         <h2>Swap Tokens</h2>
 
         <div className="swap-card">
-          <label>From Token</label>
+          <label>From</label>
           <input
-            type="text"
             value={fromToken}
             onChange={(e) => setFromToken(e.target.value)}
             style={{ color: TOKEN_COLORS[fromToken] || "#fff" }}
           />
-          <label>To Token</label>
+
+          <label>To</label>
           <input
-            type="text"
             value={toToken}
             onChange={(e) => setToToken(e.target.value)}
             style={{ color: TOKEN_COLORS[toToken] || "#fff" }}
           />
+
           <label>Amount</label>
           <input
             type="number"
             value={amountIn}
             onChange={(e) => setAmountIn(e.target.value)}
           />
+
           <p>Estimated Output: {amountOut}</p>
-          <button onClick={handleSwap}>Swap</button>
+
+          <button onClick={handleSwap} disabled={!account}>
+            Swap
+          </button>
         </div>
       </main>
     </div>
