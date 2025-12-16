@@ -7,7 +7,12 @@ import WalletConnectButton from "../../components/WalletConnectButton";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import TokenSelect from "../../components/TokenSelect";
 import { useSwap } from "../../hooks/useSwap";
-import { TOKEN_LIST, TOKEN_ADDRESS_MAP, TOKEN_COLORS, APP_CONSTANTS } from "../../utils/constants";
+import {
+  TOKEN_LIST,
+  TOKEN_ADDRESS_MAP,
+  TOKEN_COLORS,
+  APP_CONSTANTS,
+} from "../../utils/constants";
 import ERC20ABI from "../../utils/abis/ERC20.json";
 
 import "../../styles/swap.css";
@@ -53,13 +58,17 @@ export default function SwapPage() {
   /* ---------------- estimate output ---------------- */
   useEffect(() => {
     const estimate = async () => {
-      if (!amountIn || !getAmountOut || !signer) return;
+      if (!amountIn || !getAmountOut || !signer) {
+        setAmountOut("");
+        return;
+      }
 
       const path = [TOKEN_ADDRESS_MAP[fromToken.symbol], TOKEN_ADDRESS_MAP[toToken.symbol]];
       if (!path[0] || !path[1]) return;
 
       const decimalsIn = await getTokenDecimals(path[0]);
       const decimalsOut = await getTokenDecimals(path[1]);
+
       try {
         const out = await getAmountOut(amountIn, path, decimalsIn);
         setAmountOut(out ? Number(out).toFixed(decimalsOut) : "");
@@ -71,6 +80,13 @@ export default function SwapPage() {
 
     estimate();
   }, [amountIn, fromToken, toToken, signer, getAmountOut]);
+
+  /* ---------------- swap direction toggle ---------------- */
+  const toggleTokens = () => {
+    const temp = fromToken;
+    setFromToken(toToken);
+    setToToken(temp);
+  };
 
   /* ---------------- execute swap ---------------- */
   const handleSwap = async () => {
@@ -93,7 +109,6 @@ export default function SwapPage() {
     }
   };
 
-  /* ---------------- UI ---------------- */
   return (
     <div className="swap-page">
       <header className="swap-header">
@@ -120,6 +135,10 @@ export default function SwapPage() {
           <label>From</label>
           <TokenSelect selectedToken={fromToken} onSelect={setFromToken} />
 
+          <button className="swap-toggle-btn" onClick={toggleTokens}>
+            ↕ Swap
+          </button>
+
           <label>To</label>
           <TokenSelect selectedToken={toToken} onSelect={setToToken} />
 
@@ -128,19 +147,37 @@ export default function SwapPage() {
             type="number"
             value={amountIn}
             onChange={(e) => setAmountIn(e.target.value)}
+            placeholder="0.0"
           />
 
           <label>Slippage (%)</label>
-          <input
-            type="number"
-            value={slippage}
-            onChange={(e) => setSlippage(Number(e.target.value))}
-          />
+          <div className="slippage-container">
+            {[0.1, 0.5, 1].map((val) => (
+              <button
+                key={val}
+                className={slippage === val ? "active" : ""}
+                onClick={() => setSlippage(val)}
+              >
+                {val}%
+              </button>
+            ))}
+            <input
+              type="number"
+              value={slippage}
+              onChange={(e) => setSlippage(Number(e.target.value))}
+              step={0.1}
+              min={0.1}
+              max={10}
+            />
+          </div>
 
-          <p>Estimated Output: {amountOut}</p>
+          <p>Estimated Output: {amountOut || "-"}</p>
 
-          <button onClick={handleSwap} disabled={loading}>
-            {loading ? "Swapping..." : "Swap"}
+          <button
+            onClick={handleSwap}
+            disabled={loading || !account || !amountIn || !amountOut}
+          >
+            {loading ? "Swapping..." : account ? "Swap" : "Connect Wallet"}
           </button>
         </div>
       </main>
