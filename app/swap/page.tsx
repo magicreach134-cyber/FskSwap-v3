@@ -5,23 +5,24 @@ import { ethers } from "ethers";
 
 import WalletConnectButton from "../../components/WalletConnectButton";
 import ThemeSwitch from "../../components/ThemeSwitch";
+import TokenSelect from "../../components/TokenSelect";
 import { useSwap } from "../../hooks/useSwap";
-import { TOKEN_COLORS, TOKEN_ADDRESS_MAP } from "../../utils/constants";
-
+import { TOKEN_LIST, TOKEN_ADDRESS_MAP, TOKEN_COLORS, APP_CONSTANTS } from "../../utils/constants";
 import ERC20ABI from "../../utils/abis/ERC20.json";
+
 import "../../styles/swap.css";
 
 export default function SwapPage() {
-  const [provider, setProvider] =
-    useState<ethers.BrowserProvider | null>(null);
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
   const [account, setAccount] = useState<string>("");
 
+  const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
+  const [toToken, setToToken] = useState(TOKEN_LIST[1]);
   const [amountIn, setAmountIn] = useState<string>("");
   const [amountOut, setAmountOut] = useState<string>("");
-
-  const [fromToken, setFromToken] = useState<string>("FSK");
-  const [toToken, setToToken] = useState<string>("FUSDT");
+  const [slippage, setSlippage] = useState<number>(APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const { getAmountOut, swap } = useSwap(signer);
 
@@ -54,17 +55,18 @@ export default function SwapPage() {
     const estimate = async () => {
       if (!amountIn || !getAmountOut || !signer) return;
 
-      const path = [
-        TOKEN_ADDRESS_MAP[fromToken],
-        TOKEN_ADDRESS_MAP[toToken],
-      ];
-
+      const path = [TOKEN_ADDRESS_MAP[fromToken.symbol], TOKEN_ADDRESS_MAP[toToken.symbol]];
       if (!path[0] || !path[1]) return;
 
       const decimalsIn = await getTokenDecimals(path[0]);
-      const out = await getAmountOut(amountIn, path, decimalsIn);
-
-      setAmountOut(out ?? "");
+      const decimalsOut = await getTokenDecimals(path[1]);
+      try {
+        const out = await getAmountOut(amountIn, path, decimalsIn);
+        setAmountOut(out ? Number(out).toFixed(decimalsOut) : "");
+      } catch (err) {
+        console.error("Estimate failed:", err);
+        setAmountOut("");
+      }
     };
 
     estimate();
@@ -74,20 +76,20 @@ export default function SwapPage() {
   const handleSwap = async () => {
     if (!amountIn || !amountOut || !signer) return;
 
-    const path = [
-      TOKEN_ADDRESS_MAP[fromToken],
-      TOKEN_ADDRESS_MAP[toToken],
-    ];
-
+    const path = [TOKEN_ADDRESS_MAP[fromToken.symbol], TOKEN_ADDRESS_MAP[toToken.symbol]];
     const decimalsIn = await getTokenDecimals(path[0]);
 
     try {
-      await swap(amountIn, amountOut, path, account, decimalsIn);
+      setLoading(true);
+      await swap(amountIn, amountOut, path, account, decimalsIn, slippage);
       setAmountIn("");
       setAmountOut("");
+      alert("Swap successful!");
     } catch (err: any) {
       console.error("Swap failed:", err);
       alert(err?.reason || err?.message || "Swap failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,19 +101,14 @@ export default function SwapPage() {
           <img src="/logo.png" alt="FSKSwap" />
           <span>FSKSwap</span>
         </div>
-
         <nav>
           <a href="/swap">Swap</a>
           <a href="/launchpad">Launchpad</a>
           <a href="/farm">Farm</a>
           <a href="/flashswap">FlashSwap</a>
         </nav>
-
         <div className="header-right">
-          <WalletConnectButton
-            provider={provider}
-            setSigner={setSigner}
-          />
+          <WalletConnectButton provider={provider} setSigner={setSigner} />
           <ThemeSwitch />
         </div>
       </header>
@@ -121,18 +118,10 @@ export default function SwapPage() {
 
         <div className="swap-card">
           <label>From</label>
-          <input
-            value={fromToken}
-            onChange={(e) => setFromToken(e.target.value)}
-            style={{ color: TOKEN_COLORS[fromToken] || "#fff" }}
-          />
+          <TokenSelect selectedToken={fromToken} onSelect={setFromToken} />
 
           <label>To</label>
-          <input
-            value={toToken}
-            onChange={(e) => setToToken(e.target.value)}
-            style={{ color: TOKEN_COLORS[toToken] || "#fff" }}
-          />
+          <TokenSelect selectedToken={toToken} onSelect={setToToken} />
 
           <label>Amount In</label>
           <input
@@ -141,9 +130,18 @@ export default function SwapPage() {
             onChange={(e) => setAmountIn(e.target.value)}
           />
 
+          <label>Slippage (%)</label>
+          <input
+            type="number"
+            value={slippage}
+            onChange={(e) => setSlippage(Number(e.target.value))}
+          />
+
           <p>Estimated Output: {amountOut}</p>
 
-          <button onClick={handleSwap}>Swap</button>
+          <button onClick={handleSwap} disabled={loading}>
+            {loading ? "Swapping..." : "Swap"}
+          </button>
         </div>
       </main>
     </div>
