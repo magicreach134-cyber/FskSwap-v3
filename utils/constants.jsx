@@ -1,4 +1,4 @@
-// src/utils/constants.js
+// utils/constants.js
 // Central place for contract addresses, ABIs, token list, colors, and RPC config.
 // --- Corrected checksummed addresses and cleaned RPC fallback ---
 
