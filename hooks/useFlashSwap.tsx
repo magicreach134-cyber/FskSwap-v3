@@ -1,47 +1,64 @@
-// hooks/useFlashSwap.ts
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import FskFlashSwapABI from "../utils/abis/FskFlashSwap.json";
-import { FSKFlashSwap } from "../utils/constants";
+import FskFlashSwapABI from "@/utils/abis/FskFlashSwap.json";
+import { FSKFlashSwap } from "@/utils/constants";
+
+export interface EstimateResult {
+  maxProfit: string;
+  bestRouter: string;
+}
 
 const useFlashSwap = (signer?: ethers.Signer) => {
-  const [flashSwapContract, setFlashSwapContract] = useState<ethers.Contract | null>(null);
+  const [contract, setContract] = useState<ethers.Contract | null>(null);
 
   useEffect(() => {
-    if (signer) {
-      try {
-        const contract = new ethers.Contract(FSKFlashSwap, FskFlashSwapABI, signer);
-        setFlashSwapContract(contract);
-      } catch (err) {
-        console.error("Failed to initialize FlashSwap contract:", err);
-      }
-    }
+    if (!signer) return;
+
+    const instance = new ethers.Contract(
+      FSKFlashSwap,
+      FskFlashSwapABI,
+      signer
+    );
+
+    setContract(instance);
   }, [signer]);
 
-  // Estimate the best router and profit for a swap
+  /**
+   * Estimate best router and profit BEFORE execution
+   */
   const estimateBestRouter = async (
     amount: string,
     routers: string[],
     path: string[]
-  ): Promise<{ maxProfit: number; bestRouter: string }> => {
-    if (!flashSwapContract) return { maxProfit: 0, bestRouter: "" };
+  ): Promise<EstimateResult> => {
+    if (!contract) {
+      return { maxProfit: "0", bestRouter: ethers.constants.AddressZero };
+    }
+
     try {
-      const [profitBN, bestRouter]: [ethers.BigNumber, string] =
-        await flashSwapContract.estimateBestRouter(
-          ethers.utils.parseUnits(amount, 18),
-          routers,
-          path
-        );
-      return { maxProfit: parseFloat(ethers.utils.formatUnits(profitBN, 18)), bestRouter };
-    } catch (err) {
-      console.error("estimateBestRouter error:", err);
-      return { maxProfit: 0, bestRouter: "" };
+      const parsedAmount = ethers.utils.parseUnits(amount, 18);
+
+      const result = await contract.estimateBestRouter(
+        parsedAmount,
+        routers,
+        path
+      );
+
+      return {
+        maxProfit: ethers.utils.formatUnits(result.maxProfit, 18),
+        bestRouter: result.bestRouter,
+      };
+    } catch (error) {
+      console.error("estimateBestRouter failed:", error);
+      return { maxProfit: "0", bestRouter: ethers.constants.AddressZero };
     }
   };
 
-  // Execute a flash swap
+  /**
+   * Execute flash swap (ONLY after estimation)
+   */
   const executeFlashSwap = async (
     tokenBorrow: string,
     amount: string,
@@ -49,36 +66,39 @@ const useFlashSwap = (signer?: ethers.Signer) => {
     routers: string[],
     path: string[]
   ) => {
-    if (!flashSwapContract) throw new Error("FlashSwap contract not initialized");
-    try {
-      const tx = await flashSwapContract.executeFlashSwap(
-        tokenBorrow,
-        ethers.utils.parseUnits(amount, 18),
-        tokenTarget,
-        routers,
-        path
-      );
-      return await tx.wait();
-    } catch (err) {
-      console.error("executeFlashSwap error:", err);
-      throw err;
+    if (!contract) {
+      throw new Error("FlashSwap contract not initialized");
     }
+
+    const parsedAmount = ethers.utils.parseUnits(amount, 18);
+
+    const tx = await contract.executeFlashSwap(
+      tokenBorrow,
+      parsedAmount,
+      tokenTarget,
+      routers,
+      path
+    );
+
+    return await tx.wait();
   };
 
-  // Get price of a token
-  const getPrice = async (token: string): Promise<number> => {
-    if (!flashSwapContract) return 0;
+  /**
+   * Read token price from on-chain feed
+   */
+  const getPrice = async (token: string): Promise<string> => {
+    if (!contract) return "0";
+
     try {
-      const priceBN: ethers.BigNumber = await flashSwapContract.getPrice(token);
-      return parseFloat(ethers.utils.formatUnits(priceBN, 18));
-    } catch (err) {
-      console.error("getPrice error:", err);
-      return 0;
+      const price = await contract.getPrice(token);
+      return ethers.utils.formatUnits(price, 18);
+    } catch (error) {
+      console.error("getPrice failed:", error);
+      return "0";
     }
   };
 
   return {
-    flashSwapContract,
     estimateBestRouter,
     executeFlashSwap,
     getPrice,
