@@ -1,50 +1,60 @@
-// components/TokenSelect.jsx
+// components/TokenSelect.tsx
 "use client";
 
 import { useState } from "react";
-import styles from "../style/token-select.module.css"; // optional CSS module
+import { TOKEN_LIST } from "../utils/constants";
 
-const TOKEN_LIST = [
-  { symbol: "BTC", color: "#F7931A" },
-  { symbol: "ETH", color: "#627EEA" },
-  { symbol: "SOL", color: "#66F9A1" },
-  { symbol: "USDC", color: "#2775CA" },
-  { symbol: "FUSDT", color: "#FF4500" }, // red gold
-  { symbol: "WBNB", color: "#F3BA2F" },
-  { symbol: "FSK", color: "#FFD700" }, // yellow gold
-];
+interface Token {
+  symbol: string;
+  color?: string;
+  logo?: string; // optional logo URL
+}
 
-const TokenSelect = ({ selectedToken, onSelect }) => {
+interface TokenSelectProps {
+  selectedToken: Token;
+  onSelect: (token: Token) => void;
+}
+
+const TokenSelect: React.FC<TokenSelectProps> = ({ selectedToken, onSelect }) => {
   const [open, setOpen] = useState(false);
 
-  const handleSelect = (token) => {
+  const handleSelect = (token: Token) => {
     onSelect(token);
     setOpen(false);
   };
 
   return (
-    <div className={styles.tokenSelect}>
+    <div className="relative w-full">
       <button
-        className={styles.selectorButton}
         onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between bg-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
       >
-        {selectedToken ? selectedToken.symbol : "Select Token"}
-        <span className={styles.arrow}>{open ? "▲" : "▼"}</span>
+        <div className="flex items-center space-x-2">
+          {selectedToken.logo && (
+            <img src={selectedToken.logo} alt={selectedToken.symbol} className="w-5 h-5 rounded-full" />
+          )}
+          <span>{selectedToken.symbol}</span>
+        </div>
+        <span>{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
-        <ul className={styles.dropdown}>
+        <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-lg">
           {TOKEN_LIST.map((token) => (
             <li
               key={token.symbol}
-              className={styles.dropdownItem}
               onClick={() => handleSelect(token)}
+              className="flex items-center space-x-2 px-4 py-2 hover:bg-yellow-500 hover:text-black cursor-pointer"
             >
-              <span
-                className={styles.colorDot}
-                style={{ backgroundColor: token.color }}
-              />
-              {token.symbol}
+              {token.logo ? (
+                <img src={token.logo} alt={token.symbol} className="w-5 h-5 rounded-full" />
+              ) : (
+                <span
+                  className="w-5 h-5 rounded-full"
+                  style={{ backgroundColor: token.color || "#fff" }}
+                />
+              )}
+              <span>{token.symbol}</span>
             </li>
           ))}
         </ul>
