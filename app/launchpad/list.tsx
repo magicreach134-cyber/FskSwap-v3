@@ -6,7 +6,7 @@ import WalletConnectButton from "../../components/WalletConnectButton";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import usePresaleSearch from "../../hooks/usePresaleSearch";
 import { launchpadFactoryAddress, FSKLaunchpadFactoryABI, TOKEN_COLORS } from "../../utils/constants";
-import "../../style/launchpad.css";
+import "../../styles/launchpad.css";
 
 /**
  * LaunchpadList - shows all presales from factory,
