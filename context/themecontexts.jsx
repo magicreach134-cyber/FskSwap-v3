@@ -1,42 +1,26 @@
-// src/context/ThemeContext.jsx
+// components/ThemeSwitch.tsx
 "use client";
 
-import React, { createContext, useEffect, useState } from "react";
+import React, { useContext } from "react";
+import { ThemeContext } from "context/ThemeContext";
 
-// If you already have a useTheme hook, this provider will still work with it.
-// This Context exposes: { theme, toggleTheme, setTheme }
-export const ThemeContext = createContext({
-  theme: "light",
-  toggleTheme: () => {},
-  setTheme: () => {},
-});
-
-export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState("light");
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("theme");
-      const initial = stored || "light";
-      setTheme(initial);
-      document.documentElement.setAttribute("data-theme", initial);
-    } catch (e) {
-      // ignore storage errors in environments with no localStorage
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === "light" ? "dark" : "light";
-    setTheme(next);
-    try {
-      localStorage.setItem("theme", next);
-    } catch (e) {}
-    document.documentElement.setAttribute("data-theme", next);
-  };
+const ThemeSwitch: React.FC = () => {
+  const { theme, toggleTheme } = useContext(ThemeContext);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <button
+      onClick={toggleTheme}
+      className={`theme-switch flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200
+        ${theme === "light" ? "bg-gradient-to-r from-yellow-400 to-yellow-300 text-gray-900 shadow-md hover:brightness-105" 
+                              : "bg-gradient-to-r from-gray-800 to-gray-700 text-white shadow-lg hover:brightness-110"}`}
+      aria-label="Toggle theme"
+    >
+      <span className="text-lg">
+        {theme === "light" ? "☀️" : "🌙"}
+      </span>
+      <span>{theme === "light" ? "Light Mode" : "Dark Mode"}</span>
+    </button>
   );
 };
+
+export default ThemeSwitch;
