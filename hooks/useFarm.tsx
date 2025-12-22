@@ -1,105 +1,96 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { FSKFarm, FSKFarmABI, ERC20ABI } from "../utils/constants";
+import {
+  FSKFarmFactory,
+  FSKFarmFactoryABI,
+  FSKFarmABI
+} from "../utils/constants";
 
-const useFarm = (signer?: ethers.Signer) => {
-  const [farmContract, setFarmContract] = useState<ethers.Contract | null>(null);
+export interface FarmInfo {
+  address: string;
+  name: string;
+  symbol: string;
+  claimable: Record<string, ethers.BigNumber>;
+}
 
+const useFarm = (signer?: ethers.Signer | null) => {
+  const [farms, setFarms] = useState<FarmInfo[]>([]);
+  const [factory, setFactory] = useState<ethers.Contract | null>(null);
+
+  /* -------------------------------------------------------
+     Init Factory
+  ------------------------------------------------------- */
   useEffect(() => {
-    if (signer) {
-      try {
-        const contract = new ethers.Contract(FSKFarm, FSKFarmABI, signer);
-        setFarmContract(contract);
-      } catch (err) {
-        console.error("Failed to initialize farm contract:", err);
-      }
-    }
+    if (!signer) return;
+
+    const contract = new ethers.Contract(
+      FSKFarmFactory,
+      FSKFarmFactoryABI,
+      signer
+    );
+
+    setFactory(contract);
   }, [signer]);
 
-  // Helper: fetch token decimals
-  const getTokenDecimals = async (tokenAddress: string) => {
-    if (!signer) return 18;
-    try {
-      const tokenContract = new ethers.Contract(tokenAddress, ERC20ABI, signer);
-      return await tokenContract.decimals();
-    } catch (err) {
-      console.error("getTokenDecimals error:", err);
-      return 18;
-    }
-  };
+  /* -------------------------------------------------------
+     Load Farms
+  ------------------------------------------------------- */
+  useEffect(() => {
+    if (!factory || !signer) return;
 
-  // Fetch staked balance for a user
-  const getStakedBalance = async (account: string, lpToken: string) => {
-    if (!farmContract) return "0";
-    try {
-      const balance = await farmContract.stakedBalance(lpToken, account);
-      const decimals = await getTokenDecimals(lpToken);
-      return ethers.utils.formatUnits(balance, decimals);
-    } catch (err) {
-      console.error("getStakedBalance error:", err);
-      return "0";
-    }
-  };
+    const loadFarms = async () => {
+      try {
+        const user = await signer.getAddress();
+        const farmCount: number = await factory.totalFarms();
 
-  // Fetch pending rewards
-  const getPendingRewards = async (account: string) => {
-    if (!farmContract) return "0";
-    try {
-      const rewards = await farmContract.pendingReward(account);
-      return ethers.utils.formatUnits(rewards, 18);
-    } catch (err) {
-      console.error("getPendingRewards error:", err);
-      return "0";
-    }
-  };
+        const farmData: FarmInfo[] = [];
 
-  // Stake LP tokens
-  const stakeTokens = async (lpToken: string, amount: string) => {
-    if (!farmContract) throw new Error("Farm contract not initialized");
-    try {
-      const decimals = await getTokenDecimals(lpToken);
-      const tx = await farmContract.stake(lpToken, ethers.utils.parseUnits(amount, decimals));
-      return await tx.wait();
-    } catch (err) {
-      console.error("stakeTokens error:", err);
-      throw err;
-    }
-  };
+        for (let i = 0; i < farmCount; i++) {
+          const farmAddress: string = await factory.farms(i);
+          const farm = new ethers.Contract(farmAddress, FSKFarmABI, signer);
 
-  // Withdraw staked LP tokens
-  const withdrawTokens = async (lpToken: string, amount: string) => {
-    if (!farmContract) throw new Error("Farm contract not initialized");
-    try {
-      const decimals = await getTokenDecimals(lpToken);
-      const tx = await farmContract.withdraw(lpToken, ethers.utils.parseUnits(amount, decimals));
-      return await tx.wait();
-    } catch (err) {
-      console.error("withdrawTokens error:", err);
-      throw err;
-    }
-  };
+          const name = await farm.name();
+          const symbol = await farm.symbol();
+          const pending = await farm.pendingReward(user);
 
-  // Claim rewards
-  const claimRewards = async () => {
-    if (!farmContract) throw new Error("Farm contract not initialized");
-    try {
-      const tx = await farmContract.claimRewards();
-      return await tx.wait();
-    } catch (err) {
-      console.error("claimRewards error:", err);
-      throw err;
-    }
+          farmData.push({
+            address: farmAddress,
+            name,
+            symbol,
+            claimable: { [user]: pending }
+          });
+        }
+
+        setFarms(farmData);
+      } catch (err) {
+        console.error("Failed to load farms:", err);
+      }
+    };
+
+    loadFarms();
+  }, [factory, signer]);
+
+  /* -------------------------------------------------------
+     Claim Rewards
+  ------------------------------------------------------- */
+  const claim = async (farmAddress: string) => {
+    if (!signer) throw new Error("Wallet not connected");
+
+    const farm = new ethers.Contract(
+      farmAddress,
+      FSKFarmABI,
+      signer
+    );
+
+    const tx = await farm.claimRewards();
+    return await tx.wait();
   };
 
   return {
-    farmContract,
-    getStakedBalance,
-    getPendingRewards,
-    stakeTokens,
-    withdrawTokens,
-    claimRewards,
+    farms,
+    claim
   };
 };
 
