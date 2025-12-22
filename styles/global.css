@@ -1,10 +1,76 @@
+/* =========================
+   Tailwind Base
+   ========================= */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* =========================
+   CSS Variables (Theme)
+   ========================= */
+:root {
+  /* Light Theme */
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+
+  --border-color: #e5e7eb;
+  --accent: #f6c94d;
+  --accent-secondary: #e0a63a;
+
+  --shadow-primary: rgba(0, 0, 0, 0.1);
+}
+
+/* Dark Theme */
+[data-theme='dark'] {
+  --bg-primary: #0f111a;
+  --bg-secondary: #1a1c29;
+  --bg-card: #1f2133;
+
+  --text-primary: #e4e6eb;
+  --text-secondary: #b0b3c0;
+  --text-muted: #8a8e9b;
+
+  --border-color: #2e3145;
+  --accent: #f6c94d;
+  --accent-secondary: #e0a63a;
+
+  --shadow-primary: rgba(0, 0, 0, 0.25);
+}
+
+/* =========================
+   Body
+   ========================= */
 body {
   font-family: 'Inter', sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   transition: all 0.2s ease;
+}
+
+/* =========================
+   Farm Page Styles
+   ========================= */
+@import "./styles/farm.css";
+
+/* =========================
+   Links & Buttons
+   ========================= */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--accent-secondary);
+}
+
+button {
+  font-family: inherit;
+  transition: all 0.15s ease;
 }
