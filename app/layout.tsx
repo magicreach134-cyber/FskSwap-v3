@@ -1,8 +1,8 @@
-import "../style/theme.css";
-import "../style/swap-form.css";
-import "../style/launchpad.css";
-import "../style/flashswap.css";
-import "../style/staking.css";
+import "../styles/theme.css";
+import "../styles/swap-form.css";
+import "../styles/launchpad.css";
+import "../styles/flashswap.css";
+import "../styles/staking.css";
 import DexHeader from "../components/layout/DexHeader";
 
 export const metadata = {
