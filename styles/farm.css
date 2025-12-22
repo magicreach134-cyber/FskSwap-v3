@@ -1,0 +1,143 @@
+/* ======================================================
+   FSKSwap – Farm Claim Page Styles
+   Professional DEX-grade styling (non-minimal)
+   ====================================================== */
+
+/* Page wrapper */
+.farm-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.farm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.farm-header .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.farm-header .logo img {
+  width: 36px;
+  height: 36px;
+}
+
+.farm-header .logo span {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Main container */
+.farm-container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+}
+
+.farm-container h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+/* Farm cards */
+.farm-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.farm-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.farm-card p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.farm-card strong {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Claim button */
+.farm-card button {
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(
+    135deg,
+    var(--accent),
+    var(--accent-secondary)
+  );
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.farm-card button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.farm-card button:active {
+  transform: translateY(0);
+}
+
+.farm-card button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Empty state */
+.farm-container p {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .farm-container {
+    padding: 24px 14px 50px;
+  }
+
+  .farm-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .farm-card {
+    padding: 18px;
+  }
+}
