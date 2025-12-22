@@ -1,18 +1,13 @@
-import type { Metadata } from "next";
-
-import "../style/global.css";
 import "../style/theme.css";
-import "../style/tailwind.css";
-
-import "../style/form.css";
-import "../style/flashswap.css";
+import "../style/swap-form.css";
 import "../style/launchpad.css";
-import "../style/locker.css";
+import "../style/flashswap.css";
 import "../style/staking.css";
+import DexHeader from "../components/layout/DexHeader";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "FSKSwap",
-  description: "FSKSwap DEX — Swap, Farm, Launchpad, FlashSwap",
+  description: "FSKSwap Dex - Swap, Launchpad, FlashSwap, and Staking",
 };
 
 export default function RootLayout({
@@ -22,7 +17,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <DexHeader />
+
+        <main className="dex-main">{children}</main>
+
+        <footer className="dex-footer">
+          <p>© {new Date().getFullYear()} FSKSwap. All rights reserved.</p>
+        </footer>
+      </body>
     </html>
   );
 }
