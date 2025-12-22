@@ -2,94 +2,145 @@
 
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import {
-  FSKFarmFactory,
-  FSKFarmFactoryABI,
-  FSKFarmABI
-} from "../utils/constants";
+import { stakingAddress, ABIS, MINIMAL_ERC20_ABI } from "../utils/constants";
 
-export interface FarmInfo {
-  address: string;
+export interface FarmView {
+  pid: number;
+  lpToken: string;
   name: string;
   symbol: string;
-  claimable: Record<string, ethers.BigNumber>;
+  staked: ethers.BigNumber;
+  pending: ethers.BigNumber;
 }
 
 const useFarm = (signer?: ethers.Signer | null) => {
-  const [farms, setFarms] = useState<FarmInfo[]>([]);
-  const [factory, setFactory] = useState<ethers.Contract | null>(null);
+  const [staking, setStaking] = useState<ethers.Contract | null>(null);
+  const [farms, setFarms] = useState<FarmView[]>([]);
+  const [user, setUser] = useState<string>("");
 
-  /* -------------------------------------------------------
-     Init Factory
-  ------------------------------------------------------- */
+  /* ---------------------------------------------------------
+     INIT STAKING CONTRACT
+  --------------------------------------------------------- */
   useEffect(() => {
     if (!signer) return;
 
-    const contract = new ethers.Contract(
-      FSKFarmFactory,
-      FSKFarmFactoryABI,
-      signer
-    );
+    const init = async () => {
+      const address = await signer.getAddress();
+      setUser(address);
 
-    setFactory(contract);
+      const contract = new ethers.Contract(
+        stakingAddress,
+        ABIS.FSKSwapLPStaking,
+        signer
+      );
+
+      setStaking(contract);
+    };
+
+    init();
   }, [signer]);
 
-  /* -------------------------------------------------------
-     Load Farms
-  ------------------------------------------------------- */
+  /* ---------------------------------------------------------
+     LOAD FARMS (MasterChef Pools)
+  --------------------------------------------------------- */
   useEffect(() => {
-    if (!factory || !signer) return;
+    if (!staking || !user) return;
 
     const loadFarms = async () => {
       try {
-        const user = await signer.getAddress();
-        const farmCount: number = await factory.totalFarms();
+        const poolLength: number = await staking.poolLength();
+        const loaded: FarmView[] = [];
 
-        const farmData: FarmInfo[] = [];
+        for (let pid = 0; pid < poolLength; pid++) {
+          const pool = await staking.poolInfo(pid);
+          const pending = await staking.pendingReward(pid, user);
+          const userInfo = await staking.userInfo(pid, user);
 
-        for (let i = 0; i < farmCount; i++) {
-          const farmAddress: string = await factory.farms(i);
-          const farm = new ethers.Contract(farmAddress, FSKFarmABI, signer);
+          const lp = new ethers.Contract(
+            pool.lpToken,
+            MINIMAL_ERC20_ABI,
+            staking.signer
+          );
 
-          const name = await farm.name();
-          const symbol = await farm.symbol();
-          const pending = await farm.pendingReward(user);
+          const [name, symbol] = await Promise.all([
+            lp.name(),
+            lp.symbol()
+          ]);
 
-          farmData.push({
-            address: farmAddress,
+          loaded.push({
+            pid,
+            lpToken: pool.lpToken,
             name,
             symbol,
-            claimable: { [user]: pending }
+            staked: userInfo.amount,
+            pending
           });
         }
 
-        setFarms(farmData);
+        setFarms(loaded);
       } catch (err) {
-        console.error("Failed to load farms:", err);
+        console.error("Farm load error:", err);
       }
     };
 
     loadFarms();
-  }, [factory, signer]);
+  }, [staking, user]);
 
-  /* -------------------------------------------------------
-     Claim Rewards
-  ------------------------------------------------------- */
-  const claim = async (farmAddress: string) => {
-    if (!signer) throw new Error("Wallet not connected");
+  /* ---------------------------------------------------------
+     ACTIONS
+  --------------------------------------------------------- */
 
-    const farm = new ethers.Contract(
-      farmAddress,
-      FSKFarmABI,
-      signer
+  const stake = async (pid: number, amount: string) => {
+    if (!staking) throw new Error("Staking contract not ready");
+
+    const pool = await staking.poolInfo(pid);
+    const lp = new ethers.Contract(
+      pool.lpToken,
+      MINIMAL_ERC20_ABI,
+      staking.signer
     );
 
-    const tx = await farm.claimRewards();
+    const decimals = await lp.decimals();
+    const parsed = ethers.utils.parseUnits(amount, decimals);
+
+    const allowance = await lp.allowance(user, stakingAddress);
+    if (allowance.lt(parsed)) {
+      const approveTx = await lp.approve(stakingAddress, ethers.constants.MaxUint256);
+      await approveTx.wait();
+    }
+
+    const tx = await staking.deposit(pid, parsed);
+    return await tx.wait();
+  };
+
+  const unstake = async (pid: number, amount: string) => {
+    if (!staking) throw new Error("Staking contract not ready");
+
+    const pool = await staking.poolInfo(pid);
+    const lp = new ethers.Contract(
+      pool.lpToken,
+      MINIMAL_ERC20_ABI,
+      staking.signer
+    );
+
+    const decimals = await lp.decimals();
+    const parsed = ethers.utils.parseUnits(amount, decimals);
+
+    const tx = await staking.withdraw(pid, parsed);
+    return await tx.wait();
+  };
+
+  const claim = async (pid: number) => {
+    if (!staking) throw new Error("Staking contract not ready");
+
+    const tx = await staking.claim(pid);
     return await tx.wait();
   };
 
   return {
     farms,
+    stake,
+    unstake,
     claim
   };
 };
