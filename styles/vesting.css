@@ -1,0 +1,105 @@
+/* ===============================
+   Vesting Cards Layout
+================================ */
+.vesting-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  transition: background 0.3s, transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.vesting-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+}
+
+/* ===============================
+   Vesting Card Info
+================================ */
+.vesting-card p {
+  font-size: 0.95rem;
+  margin: 6px 0;
+  color: var(--text-primary, #e5e7eb);
+}
+
+.vesting-card p strong {
+  color: var(--text-highlight, #3b82f6);
+}
+
+/* ===============================
+   Vesting Action Button
+================================ */
+.vesting-card button {
+  margin-top: 14px;
+  padding: 12px 0;
+  width: 100%;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #6366f1, #3b82f6);
+  color: white;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+  transition: opacity 0.25s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.vesting-card button:hover {
+  opacity: 0.95;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+}
+
+.vesting-card button:active {
+  transform: scale(0.97);
+}
+
+.vesting-card button:disabled {
+  background: #374151;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ===============================
+   Vesting Status Labels
+================================ */
+.vesting-status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 8px;
+  color: #f9fafb;
+  background: rgba(59, 130, 246, 0.4);
+  transition: background 0.3s;
+}
+
+.vesting-status.claimed {
+  background: rgba(16, 185, 129, 0.4);
+}
+
+.vesting-status.pending {
+  background: rgba(251, 191, 36, 0.4);
+}
+
+/* ===============================
+   Responsive
+================================ */
+@media (max-width: 600px) {
+  .vesting-card {
+    padding: 16px;
+  }
+
+  .vesting-card button {
+    padding: 10px 0;
+    font-size: 0.95rem;
+  }
+
+  .vesting-card p {
+    font-size: 0.9rem;
+  }
+}
