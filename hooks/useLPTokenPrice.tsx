@@ -3,97 +3,82 @@
 
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { ABIS, TOKEN_ADDRESS_MAP } from "../utils/constants";
+import { ABIS } from "../utils/constants";
 
-interface LPPriceInfo {
+export interface LPPriceData {
   lpAddress: string;
-  lpName: string;
-  lpSymbol: string;
+  lpPriceUSD: number;
+  reserve0: number;
+  reserve1: number;
   token0: string;
   token1: string;
-  reserve0: string;
-  reserve1: string;
-  totalSupply: string;
-  lpPriceUSD: number;
 }
 
-interface TokenPriceMap {
-  [symbol: string]: number;
+interface UseLPTokenPriceProps {
+  provider: ethers.providers.Web3Provider;
+  lpAddresses: string[];
+  tokenPricesUSD: Record<string, number>; // mapping of token symbol => USD price
 }
 
-/**
- * Calculates LP token USD price from reserves and token prices.
- */
-const useLPTokenPrice = (
-  provider: ethers.providers.Web3Provider,
-  lpAddresses: string[],
-  tokenPrices: TokenPriceMap
-) => {
-  const [lpData, setLpData] = useState<LPPriceInfo[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+const useLPTokenPrice = ({
+  provider,
+  lpAddresses,
+  tokenPricesUSD,
+}: UseLPTokenPriceProps) => {
+  const [lpData, setLpData] = useState<LPPriceData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!provider || lpAddresses.length === 0) return;
+    if (!provider || !lpAddresses.length) return;
 
-    const fetchLPPrices = async () => {
+    const loadLPPrices = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-
-        const data: LPPriceInfo[] = [];
+        const data: LPPriceData[] = [];
 
         for (const lpAddress of lpAddresses) {
-          const lp = new ethers.Contract(
-            lpAddress,
-            [
-              "function name() view returns (string)",
-              "function symbol() view returns (string)",
-              "function totalSupply() view returns (uint256)",
-              "function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
-              "function token0() view returns (address)",
-              "function token1() view returns (address)",
-            ],
-            provider
+          const lpContract = new ethers.Contract(lpAddress, ABIS.FSKSwapLPStaking, provider);
+
+          // Fetch reserves and token addresses
+          const [reservesRaw, token0Addr, token1Addr] = await Promise.all([
+            lpContract.getReserves(),
+            lpContract.token0(),
+            lpContract.token1(),
+          ]);
+
+          // Fetch decimals for each token
+          const token0Contract = new ethers.Contract(token0Addr, ABIS.MINIMAL_ERC20_ABI, provider);
+          const token1Contract = new ethers.Contract(token1Addr, ABIS.MINIMAL_ERC20_ABI, provider);
+
+          const [dec0, dec1, symbol0, symbol1] = await Promise.all([
+            token0Contract.decimals(),
+            token1Contract.decimals(),
+            token0Contract.symbol(),
+            token1Contract.symbol(),
+          ]);
+
+          // Format reserves
+          const reserve0 = parseFloat(ethers.utils.formatUnits(reservesRaw._reserve0, dec0));
+          const reserve1 = parseFloat(ethers.utils.formatUnits(reservesRaw._reserve1, dec1));
+
+          // Compute LP price in USD
+          const price0 = tokenPricesUSD[symbol0] || 0;
+          const price1 = tokenPricesUSD[symbol1] || 0;
+          const totalValueUSD = reserve0 * price0 + reserve1 * price1;
+
+          const totalSupply = parseFloat(
+            ethers.utils.formatUnits(await lpContract.totalSupply(), 18)
           );
 
-          const [lpName, lpSymbol, totalSupplyRaw, reserves, token0Addr, token1Addr] =
-            await Promise.all([
-              lp.name(),
-              lp.symbol(),
-              lp.totalSupply(),
-              lp.getReserves(),
-              lp.token0(),
-              lp.token1(),
-            ]);
-
-          const token0Symbol = Object.keys(TOKEN_ADDRESS_MAP).find(
-            (k) => TOKEN_ADDRESS_MAP[k] === token0Addr
-          ) || "UNKNOWN";
-
-          const token1Symbol = Object.keys(TOKEN_ADDRESS_MAP).find(
-            (k) => TOKEN_ADDRESS_MAP[k] === token1Addr
-          ) || "UNKNOWN";
-
-          const reserve0 = parseFloat(ethers.utils.formatUnits(reserves.reserve0, 18));
-          const reserve1 = parseFloat(ethers.utils.formatUnits(reserves.reserve1, 18));
-
-          // LP token USD price = total value of reserves / totalSupply
-          const totalValueUSD =
-            (reserve0 * (tokenPrices[token0Symbol] || 0)) +
-            (reserve1 * (tokenPrices[token1Symbol] || 0));
-
-          const totalSupply = parseFloat(ethers.utils.formatUnits(totalSupplyRaw, 18));
-          const lpPriceUSD = totalSupply > 0 ? totalValueUSD / totalSupply : 0;
+          const lpPriceUSD = totalSupply ? totalValueUSD / totalSupply : 0;
 
           data.push({
             lpAddress,
-            lpName,
-            lpSymbol,
-            token0: token0Symbol,
-            token1: token1Symbol,
-            reserve0: reserve0.toString(),
-            reserve1: reserve1.toString(),
-            totalSupply: totalSupply.toString(),
             lpPriceUSD,
+            reserve0,
+            reserve1,
+            token0: symbol0,
+            token1: symbol1,
           });
         }
 
@@ -106,8 +91,8 @@ const useLPTokenPrice = (
       }
     };
 
-    fetchLPPrices();
-  }, [provider, lpAddresses, tokenPrices]);
+    loadLPPrices();
+  }, [provider, lpAddresses, tokenPricesUSD]);
 
   return { lpData, loading };
 };
