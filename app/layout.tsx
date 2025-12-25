@@ -1,10 +1,8 @@
-// app/layout.tsx
 import "../styles/theme.css";
 import "../styles/swap-form.css";
 import "../styles/launchpad.css";
 import "../styles/flashswap.css";
 import "../styles/staking.css";
-
 import DexHeader from "../components/layout/DexHeader";
 import { ThemeProvider } from "../context/ThemeContext";
 
@@ -23,9 +21,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <DexHeader />
-
           <main className="dex-main">{children}</main>
-
           <footer className="dex-footer">
             <p>© {new Date().getFullYear()} FSKSwap. All rights reserved.</p>
           </footer>
