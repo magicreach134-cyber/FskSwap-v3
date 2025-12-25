@@ -1,0 +1,200 @@
+/* ===============================
+   Swap Page Layout
+================================ */
+.swap-page {
+  max-width: 520px;
+  margin: 40px auto;
+  padding: 0 16px;
+  color: var(--text-primary, #e5e7eb);
+}
+
+.swap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.swap-header h1 {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+/* ===============================
+   Swap Card
+================================ */
+.swap-card {
+  background: var(--card-bg, #0f172a);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* ===============================
+   Token Input
+================================ */
+.swap-input-group {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.swap-input-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-bottom: 6px;
+}
+
+.swap-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.swap-input input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 1.3rem;
+  color: #f9fafb;
+}
+
+.swap-input input::placeholder {
+  color: #6b7280;
+}
+
+.token-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.token-select:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ===============================
+   Switch Button
+================================ */
+.swap-switch {
+  display: flex;
+  justify-content: center;
+  margin: -6px 0 8px;
+}
+
+.swap-switch button {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.swap-switch button:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: rotate(180deg);
+}
+
+/* ===============================
+   Quote & Info
+================================ */
+.swap-info {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin: 10px 0;
+}
+
+.swap-info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+/* ===============================
+   Errors & Warnings
+================================ */
+.swap-error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fecaca;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.8rem;
+  margin-top: 10px;
+}
+
+/* ===============================
+   Action Button
+================================ */
+.swap-action {
+  margin-top: 14px;
+}
+
+.swap-action button {
+  width: 100%;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(
+    135deg,
+    #3b82f6,
+    #6366f1
+  );
+  color: white;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.swap-action button:hover {
+  opacity: 0.9;
+}
+
+.swap-action button:active {
+  transform: scale(0.98);
+}
+
+.swap-action button:disabled {
+  background: #374151;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ===============================
+   Loading State
+================================ */
+.swap-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ===============================
+   Responsive
+================================ */
+@media (max-width: 480px) {
+  .swap-page {
+    margin-top: 20px;
+  }
+
+  .swap-card {
+    padding: 14px;
+  }
+
+  .swap-input input {
+    font-size: 1.1rem;
+  }
+}
