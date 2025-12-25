@@ -6,6 +6,8 @@
   margin: 40px auto;
   padding: 0 16px;
   color: var(--text-primary, #e5e7eb);
+  font-family: 'Inter', sans-serif;
+  transition: color 0.3s, background 0.3s;
 }
 
 .swap-header {
@@ -16,8 +18,9 @@
 }
 
 .swap-header h1 {
-  font-size: 1.4rem;
-  font-weight: 600;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary, #f9fafb);
 }
 
 /* ===============================
@@ -26,9 +29,10 @@
 .swap-card {
   background: var(--card-bg, #0f172a);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  padding: 18px;
+  border-radius: 16px;
+  padding: 24px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  transition: background 0.3s, border 0.3s;
 }
 
 /* ===============================
@@ -36,9 +40,10 @@
 ================================ */
 .swap-input-group {
   background: rgba(255, 255, 255, 0.04);
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 14px;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: background 0.3s;
 }
 
 .swap-input-header {
@@ -46,13 +51,13 @@
   justify-content: space-between;
   font-size: 0.75rem;
   color: #9ca3af;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .swap-input {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .swap-input input {
@@ -60,8 +65,9 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   color: #f9fafb;
+  transition: color 0.3s;
 }
 
 .swap-input input::placeholder {
@@ -71,17 +77,18 @@
 .token-select {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 6px 10px;
+  border-radius: 12px;
+  padding: 8px 12px;
   cursor: pointer;
   font-weight: 500;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .token-select:hover {
   background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
 }
 
 /* ===============================
@@ -90,17 +97,17 @@
 .swap-switch {
   display: flex;
   justify-content: center;
-  margin: -6px 0 8px;
+  margin: -8px 0 12px;
 }
 
 .swap-switch button {
   background: rgba(255, 255, 255, 0.08);
   border: none;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition: transform 0.25s ease, background 0.25s ease;
 }
 
 .swap-switch button:hover {
@@ -112,15 +119,15 @@
    Quote & Info
 ================================ */
 .swap-info {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: #9ca3af;
-  margin: 10px 0;
+  margin: 12px 0;
 }
 
 .swap-info-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 /* ===============================
@@ -130,42 +137,41 @@
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.4);
   color: #fecaca;
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 0.8rem;
-  margin-top: 10px;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.85rem;
+  margin-top: 12px;
+  transition: opacity 0.3s;
 }
 
 /* ===============================
    Action Button
 ================================ */
 .swap-action {
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .swap-action button {
   width: 100%;
-  padding: 14px;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 12px;
+  padding: 16px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-radius: 14px;
   border: none;
   cursor: pointer;
-  background: linear-gradient(
-    135deg,
-    #3b82f6,
-    #6366f1
-  );
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
   color: white;
-  transition: opacity 0.2s ease, transform 0.15s ease;
+  transition: opacity 0.25s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
 }
 
 .swap-action button:hover {
-  opacity: 0.9;
+  opacity: 0.95;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .swap-action button:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .swap-action button:disabled {
@@ -178,7 +184,7 @@
    Loading State
 ================================ */
 .swap-loading {
-  opacity: 0.6;
+  opacity: 0.65;
   pointer-events: none;
 }
 
@@ -187,14 +193,19 @@
 ================================ */
 @media (max-width: 480px) {
   .swap-page {
-    margin-top: 20px;
+    margin-top: 24px;
   }
 
   .swap-card {
-    padding: 14px;
+    padding: 18px;
   }
 
   .swap-input input {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
+  }
+
+  .swap-action button {
+    padding: 14px;
+    font-size: 1rem;
   }
 }
