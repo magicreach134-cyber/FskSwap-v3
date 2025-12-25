@@ -11,8 +11,9 @@ const ThemeSwitch = () => {
       className={`theme-switch ${theme}`}
       onClick={toggleTheme}
       title="Toggle Light/Dark Mode"
+      aria-label="Toggle theme"
     >
-      {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+      {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
     </button>
   );
 };
