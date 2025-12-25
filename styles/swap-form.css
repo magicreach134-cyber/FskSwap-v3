@@ -1,0 +1,150 @@
+/* =======================
+   Swap Form Container
+======================= */
+.swap-container {
+  background-color: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  padding: 2rem;
+  max-width: 480px;
+  margin: 2rem auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: background-color var(--transition-speed), border-color var(--transition-speed);
+}
+
+/* =======================
+   Form Elements
+======================= */
+.swap-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.swap-form label {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+.swap-form input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-size: 1rem;
+  transition: border-color var(--transition-speed), background-color var(--transition-speed);
+}
+
+.swap-form input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* =======================
+   Swap Button
+======================= */
+.swap-button {
+  background-color: var(--color-primary);
+  color: #fff;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all var(--transition-speed);
+}
+
+.swap-button:hover {
+  background-color: var(--color-hover);
+}
+
+/* =======================
+   Token Select
+======================= */
+.token-select {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--color-bg);
+  cursor: pointer;
+  transition: border-color var(--transition-speed), background-color var(--transition-speed);
+}
+
+.token-select:hover {
+  border-color: var(--color-primary);
+}
+
+.token-select img {
+  width: 24px;
+  height: 24px;
+  margin-right: 0.5rem;
+}
+
+.token-select span {
+  font-weight: 600;
+}
+
+/* =======================
+   Swap Info & Rates
+======================= */
+.swap-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  margin-top: -0.5rem;
+}
+
+.swap-info .rate {
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+/* =======================
+   Slippage & Settings
+======================= */
+.swap-settings {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.swap-settings button {
+  background-color: var(--color-bg-alt);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.swap-settings button:hover {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+
+/* =======================
+   Responsive
+======================= */
+@media (max-width: 768px) {
+  .swap-container {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+
+  .swap-form input, .swap-button {
+    font-size: 0.875rem;
+    padding: 0.5rem;
+  }
+}
