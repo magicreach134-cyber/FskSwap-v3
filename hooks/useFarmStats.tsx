@@ -3,59 +3,82 @@
 
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { stakingAddress, ABIS, TOKEN_ADDRESS_MAP } from "../utils/constants";
+import useLPTokenPrice from "./useLPTokenPrice";
+import useFarmAPY from "./useFarmAPY";
+import { FSKSwapLPStaking, ABIS } from "../utils/constants";
 
-interface FarmStat {
+export interface UserFarmStats {
   pid: number;
-  lpToken: string;
-  lpName: string;
-  lpSymbol: string;
-  userStaked: string; // formatted
-  totalStaked: string; // formatted
-  pendingReward: string; // formatted
-  rewardToken: string;
+  lpAddress: string;
+  name: string;
+  symbol: string;
+  stakedAmount: string; // formatted string
+  pendingReward: string; // formatted string
+  lpPriceUSD: number;
+  totalStakedUSD: number;
+  apy: number;
 }
 
-const useFarmStats = (provider: ethers.providers.Web3Provider, userAddress: string) => {
-  const [stats, setStats] = useState<FarmStat[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+const useFarmStats = (
+  provider: ethers.providers.Web3Provider,
+  userAddress: string,
+  farms: { pid: number; lpAddress: string; name: string; symbol: string }[],
+  rewardTokenPriceUSD: number
+) => {
+  const [stats, setStats] = useState<UserFarmStats[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch LP prices
+  const { lpData, loading: lpLoading } = useLPTokenPrice(
+    provider,
+    farms.map((f) => f.lpAddress),
+    { FSK: rewardTokenPriceUSD }
+  );
+
+  // Fetch APY
+  const { apyData, loading: apyLoading } = useFarmAPY(
+    provider,
+    farms.map((f) => ({ pid: f.pid, lpAddress: f.lpAddress })),
+    rewardTokenPriceUSD
+  );
 
   useEffect(() => {
-    if (!provider || !userAddress) return;
+    if (!provider || !userAddress || lpLoading || apyLoading) return;
 
-    const fetchStats = async () => {
+    const stakingContract = new ethers.Contract(
+      FSKSwapLPStaking,
+      ABIS.FSKSwapLPStaking,
+      provider
+    );
+
+    const loadStats = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
+        const data: UserFarmStats[] = [];
 
-        const staking = new ethers.Contract(stakingAddress, ABIS.FSKSwapLPStaking, provider);
-        const poolLength: number = await staking.poolLength();
-        const data: FarmStat[] = [];
-
-        for (let pid = 0; pid < poolLength; pid++) {
-          const pool = await staking.poolInfo(pid);
-          const lp = new ethers.Contract(
-            pool.lpToken,
-            ["function name() view returns (string)", "function symbol() view returns (string)"],
-            provider
-          );
-
-          const [lpName, lpSymbol, totalStakedRaw, userStakedRaw, pendingRaw] = await Promise.all([
-            lp.name(),
-            lp.symbol(),
-            staking.totalStaked(pid),
-            staking.stakedBalance(pid, userAddress),
-            staking.pendingReward(pid, userAddress),
+        for (const farm of farms) {
+          const [stakedRaw, pendingRaw] = await Promise.all([
+            stakingContract.stakedBalance(farm.lpAddress, userAddress),
+            stakingContract.pendingReward(farm.lpAddress, userAddress),
           ]);
 
+          const decimals = 18; // assuming 18 decimals for LP tokens, can be dynamic if needed
+          const stakedAmount = ethers.utils.formatUnits(stakedRaw, decimals);
+          const pendingReward = ethers.utils.formatUnits(pendingRaw, decimals);
+
+          const lpInfo = lpData.find((lp) => lp.lpAddress === farm.lpAddress);
+          const apyInfo = apyData.find((ap) => ap.lpAddress === farm.lpAddress);
+
           data.push({
-            pid,
-            lpToken: pool.lpToken,
-            lpName,
-            lpSymbol,
-            totalStaked: ethers.utils.formatUnits(totalStakedRaw, 18),
-            userStaked: ethers.utils.formatUnits(userStakedRaw, 18),
-            pendingReward: ethers.utils.formatUnits(pendingRaw, 18),
-            rewardToken: TOKEN_ADDRESS_MAP.FSK, // assuming FSK as reward token
+            pid: farm.pid,
+            lpAddress: farm.lpAddress,
+            name: farm.name,
+            symbol: farm.symbol,
+            stakedAmount,
+            pendingReward,
+            lpPriceUSD: lpInfo?.lpPriceUSD || 0,
+            totalStakedUSD: apyInfo?.totalStakedUSD || 0,
+            apy: apyInfo?.apy || 0,
           });
         }
 
@@ -68,8 +91,8 @@ const useFarmStats = (provider: ethers.providers.Web3Provider, userAddress: stri
       }
     };
 
-    fetchStats();
-  }, [provider, userAddress]);
+    loadStats();
+  }, [provider, userAddress, farms, lpData, apyData, lpLoading, apyLoading]);
 
   return { stats, loading };
 };
