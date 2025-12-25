@@ -1,26 +1,40 @@
-// components/ThemeSwitch.tsx
 "use client";
 
-import React, { useContext } from "react";
-import { ThemeContext } from "context/ThemeContext";
+import { createContext, useState, useEffect, ReactNode } from "react";
 
-const ThemeSwitch: React.FC = () => {
-  const { theme, toggleTheme } = useContext(ThemeContext);
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className={`theme-switch flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200
-        ${theme === "light" ? "bg-gradient-to-r from-yellow-400 to-yellow-300 text-gray-900 shadow-md hover:brightness-105" 
-                              : "bg-gradient-to-r from-gray-800 to-gray-700 text-white shadow-lg hover:brightness-110"}`}
-      aria-label="Toggle theme"
-    >
-      <span className="text-lg">
-        {theme === "light" ? "☀️" : "🌙"}
-      </span>
-      <span>{theme === "light" ? "Light Mode" : "Dark Mode"}</span>
-    </button>
-  );
+type ThemeContextType = {
+  theme: "light" | "dark";
+  toggleTheme: () => void;
 };
 
-export default ThemeSwitch;
+export const ThemeContext = createContext<ThemeContextType>({
+  theme: "light",
+  toggleTheme: () => {},
+});
+
+export const ThemeProvider = ({ children }: { children: ReactNode }) => {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.setAttribute("data-theme", savedTheme);
+    } else {
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    localStorage.setItem("theme", next);
+    document.documentElement.setAttribute("data-theme", next);
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
