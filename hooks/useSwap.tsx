@@ -1,17 +1,32 @@
-// useSwap.ts
+"use client";
+
 import { useMemo } from "react";
-import { ethers, BigNumber } from "ethers";
-import { ABIS, routerAddress, TOKENS, MINIMAL_ERC20_ABI, APP_CONSTANTS } from "../utils/constants";
+import { ethers } from "ethers";
+
+import {
+  ABIS,
+  routerAddress,
+  TOKENS,
+  MINIMAL_ERC20_ABI,
+  APP_CONSTANTS,
+} from "../utils/constants";
+
+type TokenKey = keyof typeof TOKENS;
 
 type SwapParams = {
   amountIn: string;
-  slippagePercent?: number;
-  fromToken: keyof typeof TOKENS;
-  toToken: keyof typeof TOKENS;
+  fromToken: TokenKey;
+  toToken: TokenKey;
   to: string;
+  slippagePercent?: number;
 };
 
-export const useSwap = (provider: ethers.BrowserProvider | null, signer: ethers.Signer | null) => {
+export const useSwap = (
+  provider: ethers.BrowserProvider | null,
+  signer: ethers.Signer | null
+) => {
+  /* ================= Router Instances ================= */
+
   const routerRead = useMemo(() => {
     if (!provider) return null;
     return new ethers.Contract(routerAddress, ABIS.FSKRouter, provider);
@@ -22,93 +37,150 @@ export const useSwap = (provider: ethers.BrowserProvider | null, signer: ethers.
     return new ethers.Contract(routerAddress, ABIS.FSKRouter, signer);
   }, [signer]);
 
+  /* ================= ERC20 Helpers ================= */
+
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
-    if (!signer) return 18;
+    if (!provider) return 18;
     try {
-      const token = new ethers.Contract(tokenAddress, MINIMAL_ERC20_ABI, signer);
-      return await token.decimals();
+      const token = new ethers.Contract(
+        tokenAddress,
+        MINIMAL_ERC20_ABI,
+        provider
+      );
+      return Number(await token.decimals());
     } catch {
       return 18;
     }
   };
 
-  // Automatically find the best path
+  /* ================= Path Finder ================= */
+
   const findBestPath = async (
-    fromToken: keyof typeof TOKENS,
-    toToken: keyof typeof TOKENS,
+    fromToken: TokenKey,
+    toToken: TokenKey,
     amountIn: string
-  ): Promise<{ path: string[]; amountOut: string }> => {
-    if (!routerRead) return { path: [], amountOut: "0" };
+  ): Promise<{ path: string[]; amountOut: bigint }> => {
+    if (!routerRead) throw new Error("Router not ready");
 
     const directPath = [TOKENS[fromToken], TOKENS[toToken]];
     const wbnbPath = [TOKENS[fromToken], TOKENS.WBNB, TOKENS[toToken]];
 
     const decimalsIn = await getTokenDecimals(TOKENS[fromToken]);
-    const decimalsOut = await getTokenDecimals(TOKENS[toToken]);
+    const amountInParsed = ethers.parseUnits(amountIn, decimalsIn);
 
-    const amountInParsed = ethers.utils.parseUnits(amountIn, decimalsIn);
+    let bestOut: bigint = 0n;
+    let bestPath: string[] = directPath;
 
-    let bestAmountOut = BigNumber.from(0);
-    let bestPath = directPath;
-
+    // Direct path
     try {
-      // Direct
-      const directAmounts = await routerRead.getAmountsOut(amountInParsed, directPath);
-      if (directAmounts[directAmounts.length - 1].gt(bestAmountOut)) {
-        bestAmountOut = directAmounts[directAmounts.length - 1];
+      const amounts = await routerRead.getAmountsOut(
+        amountInParsed,
+        directPath
+      );
+      const out = amounts[amounts.length - 1] as bigint;
+      if (out > bestOut) {
+        bestOut = out;
         bestPath = directPath;
       }
     } catch {}
 
+    // Via WBNB
     try {
-      // Via WBNB
-      const wbnbAmounts = await routerRead.getAmountsOut(amountInParsed, wbnbPath);
-      if (wbnbAmounts[wbnbAmounts.length - 1].gt(bestAmountOut)) {
-        bestAmountOut = wbnbAmounts[wbnbAmounts.length - 1];
+      const amounts = await routerRead.getAmountsOut(
+        amountInParsed,
+        wbnbPath
+      );
+      const out = amounts[amounts.length - 1] as bigint;
+      if (out > bestOut) {
+        bestOut = out;
         bestPath = wbnbPath;
       }
     } catch {}
 
-    const formattedOut = ethers.utils.formatUnits(bestAmountOut, decimalsOut);
-    return { path: bestPath, amountOut: formattedOut };
+    if (bestOut === 0n) {
+      throw new Error("No liquidity for this pair");
+    }
+
+    return { path: bestPath, amountOut: bestOut };
   };
 
-  const getAmountOut = async (fromToken: keyof typeof TOKENS, toToken: keyof typeof TOKENS, amountIn: string) => {
-    return await findBestPath(fromToken, toToken, amountIn);
+  /* ================= Quote ================= */
+
+  const getAmountOut = async (
+    fromToken: TokenKey,
+    toToken: TokenKey,
+    amountIn: string
+  ): Promise<string> => {
+    const { amountOut } = await findBestPath(fromToken, toToken, amountIn);
+    const decimalsOut = await getTokenDecimals(TOKENS[toToken]);
+    return ethers.formatUnits(amountOut, decimalsOut);
   };
+
+  /* ================= Swap ================= */
 
   const swapExactTokensForTokens = async ({
     amountIn,
-    slippagePercent = APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT,
     fromToken,
     toToken,
     to,
+    slippagePercent = APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT,
   }: SwapParams) => {
-    if (!routerWrite || !signer) throw new Error("Wallet not connected");
+    if (!routerWrite || !signer) {
+      throw new Error("Wallet not connected");
+    }
 
-    const { path, amountOut } = await findBestPath(fromToken, toToken, amountIn);
+    const { path, amountOut } = await findBestPath(
+      fromToken,
+      toToken,
+      amountIn
+    );
 
     const decimalsIn = await getTokenDecimals(path[0]);
-    const decimalsOut = await getTokenDecimals(path[path.length - 1]);
+    const amountInParsed = ethers.parseUnits(amountIn, decimalsIn);
 
-    const amountInParsed = ethers.utils.parseUnits(amountIn, decimalsIn);
-    const amountOutParsed = ethers.utils.parseUnits(amountOut, decimalsOut);
+    // Slippage protection
+    const slippageBps = BigInt(Math.floor(slippagePercent * 100));
+    const amountOutMin =
+      (amountOut * (10000n - slippageBps)) / 10000n;
 
-    const amountOutMin = amountOutParsed.mul(10000 - Math.floor(slippagePercent * 100)).div(10000);
+    /* -------- Approve -------- */
 
-    // Approve
-    const tokenContract = new ethers.Contract(path[0], MINIMAL_ERC20_ABI, signer);
-    const allowance = await tokenContract.allowance(await signer.getAddress(), routerAddress);
-    if (allowance.lt(amountInParsed)) {
-      const approveTx = await tokenContract.approve(routerAddress, ethers.constants.MaxUint256);
+    const token = new ethers.Contract(
+      path[0],
+      MINIMAL_ERC20_ABI,
+      signer
+    );
+
+    const owner = await signer.getAddress();
+    const allowance: bigint = await token.allowance(owner, routerAddress);
+
+    if (allowance < amountInParsed) {
+      const approveTx = await token.approve(
+        routerAddress,
+        ethers.MaxUint256
+      );
       await approveTx.wait();
     }
 
-    const deadline = Math.floor(Date.now() / 1000) + APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
-    const tx = await routerWrite.swapExactTokensForTokens(amountInParsed, amountOutMin, path, to, deadline);
+    /* -------- Swap -------- */
+
+    const deadline =
+      Math.floor(Date.now() / 1000) +
+      APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
+
+    const tx = await routerWrite.swapExactTokensForTokens(
+      amountInParsed,
+      amountOutMin,
+      path,
+      to,
+      deadline
+    );
 
     return await tx.wait();
   };
 
-  return { getAmountOut, swapExactTokensForTokens };
+  return {
+    getAmountOut,
+    swapExactTokensForTokens,
+  };
 };
