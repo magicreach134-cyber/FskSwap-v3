@@ -13,18 +13,23 @@ import "@/styles/staking.css";
 const FarmClaim = () => {
   const { signer, account } = useWallet();
   const { farms, claim } = useFarm(signer as Signer | null);
+  const [loadingPid, setLoadingPid] = useState<number | null>(null);
 
   const handleClaim = async (pid: number) => {
     if (!signer) {
       alert("Connect wallet first");
       return;
     }
+
+    setLoadingPid(pid);
     try {
       await claim(pid);
       alert("Claimed rewards successfully");
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Claim failed");
+    } finally {
+      setLoadingPid(null);
     }
   };
 
@@ -49,9 +54,8 @@ const FarmClaim = () => {
         {signer && farms.length === 0 && <p>No farms available.</p>}
 
         {farms.map((farm: FarmView) => {
-          const claimable = farm.pending
-            ? parseFloat(ethers.formatUnits(farm.pending, 18))
-            : 0;
+          // Parse pending reward safely
+          const claimable = parseFloat(farm.pending || "0");
 
           return (
             <div key={farm.pid} className="farm-card">
@@ -63,7 +67,12 @@ const FarmClaim = () => {
               </p>
 
               {claimable > 0 && (
-                <button onClick={() => handleClaim(farm.pid)}>Claim</button>
+                <button
+                  onClick={() => handleClaim(farm.pid)}
+                  disabled={loadingPid === farm.pid}
+                >
+                  {loadingPid === farm.pid ? "Claiming..." : "Claim"}
+                </button>
               )}
             </div>
           );
