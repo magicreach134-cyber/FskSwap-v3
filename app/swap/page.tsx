@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useWallet } from "@/context/WalletContext";
+import { useWallet } from "@/hooks/useWallet";
 import { useSwap } from "@/hooks/useSwap";
-
 import TokenSelect from "@/components/TokenSelect";
 
 import {
@@ -30,9 +29,7 @@ export default function SwapPage() {
   );
   const [loading, setLoading] = useState(false);
 
-  /**
-   * Quote estimation
-   */
+  /* ---------- Estimate output ---------- */
   const estimateAmountOut = useCallback(async () => {
     if (!amountIn || !getAmountOut) {
       setAmountOut("");
@@ -45,7 +42,6 @@ export default function SwapPage() {
         toToken.symbol as TokenSymbol,
         amountIn
       );
-
       setAmountOut(quoted ?? "");
     } catch (err) {
       console.error("Quote error:", err);
@@ -57,18 +53,14 @@ export default function SwapPage() {
     estimateAmountOut();
   }, [estimateAmountOut]);
 
-  /**
-   * Swap tokens direction
-   */
+  /* ---------- Swap direction ---------- */
   const handleSwitchTokens = () => {
     setFromToken(toToken);
     setToToken(fromToken);
     setAmountOut("");
   };
 
-  /**
-   * Execute swap
-   */
+  /* ---------- Execute swap ---------- */
   const handleSwap = async () => {
     if (!signer || !account) {
       alert("Connect wallet first");
@@ -105,16 +97,13 @@ export default function SwapPage() {
   return (
     <div className="swap-page">
       <main className="swap-container">
-        <h2>Swap</h2>
+        <h2>Swap Tokens</h2>
 
         <div className={`swap-card ${loading ? "swap-loading" : ""}`}>
           <div className="swap-token-row">
             <div className="swap-token-box">
               <label>From</label>
-              <TokenSelect
-                selectedToken={fromToken}
-                onSelect={setFromToken}
-              />
+              <TokenSelect selectedToken={fromToken} onSelect={setFromToken} />
             </div>
 
             <button
@@ -128,10 +117,7 @@ export default function SwapPage() {
 
             <div className="swap-token-box">
               <label>To</label>
-              <TokenSelect
-                selectedToken={toToken}
-                onSelect={setToToken}
-              />
+              <TokenSelect selectedToken={toToken} onSelect={setToToken} />
             </div>
           </div>
 
