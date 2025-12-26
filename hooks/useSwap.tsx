@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { ethers, Contract, MaxUint256 } from "ethers";
+import { Contract, parseUnits, formatUnits, MaxUint256 } from "ethers";
+import { JsonRpcProvider, Web3Provider } from "@ethersproject/providers";
 
 import {
   ABIS,
@@ -25,13 +26,13 @@ type SwapParams = {
 const DEFAULT_BNB_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545";
 
 export const useSwap = (
-  provider: ethers.BrowserProvider | null,
-  signer: ethers.Signer | null
+  provider: Web3Provider | null,
+  signer: any | null
 ) => {
   /* ================= Router Instances ================= */
 
   const routerRead = useMemo(() => {
-    const readProvider = provider ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC);
+    const readProvider = provider ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
     return new Contract(routerAddress, ABIS.FSKRouter, readProvider);
   }, [provider]);
 
@@ -47,7 +48,7 @@ export const useSwap = (
       const token = new Contract(
         tokenAddress,
         MINIMAL_ERC20_ABI,
-        provider ?? signer ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC)
+        provider ?? signer ?? new JsonRpcProvider(DEFAULT_BNB_RPC)
       );
       return Number(await token.decimals());
     } catch {
@@ -71,7 +72,7 @@ export const useSwap = (
     const viaWBNB = [from, TOKENS.WBNB, to];
 
     const decimalsIn = await getTokenDecimals(from);
-    const amountInParsed = ethers.parseUnits(amountIn, decimalsIn);
+    const amountInParsed = parseUnits(amountIn, decimalsIn);
 
     let bestAmountOut = 0n;
     let bestPath = directPath;
@@ -114,7 +115,7 @@ export const useSwap = (
   ): Promise<string> => {
     const { amountOut } = await findBestPath(fromToken, toToken, amountIn);
     const decimalsOut = await getTokenDecimals(TOKENS[toToken]);
-    return ethers.formatUnits(amountOut, decimalsOut);
+    return formatUnits(amountOut, decimalsOut);
   };
 
   /* ================= Swap ================= */
@@ -137,7 +138,7 @@ export const useSwap = (
     );
 
     const decimalsIn = await getTokenDecimals(path[0]);
-    const amountInParsed = ethers.parseUnits(amountIn, decimalsIn);
+    const amountInParsed = parseUnits(amountIn, decimalsIn);
 
     /* ---- Slippage Protection (basis points) ---- */
     const slippageBps = BigInt(Math.floor(slippagePercent * 100));
@@ -154,17 +155,13 @@ export const useSwap = (
     );
 
     if (allowance < amountInParsed) {
-      const approveTx = await tokenIn.approve(
-        routerAddress,
-        MaxUint256
-      );
+      const approveTx = await tokenIn.approve(routerAddress, MaxUint256);
       await approveTx.wait();
     }
 
     /* ---- Execute Swap ---- */
     const deadline =
-      Math.floor(Date.now() / 1000) +
-      APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
+      Math.floor(Date.now() / 1000) + APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
 
     const tx = await routerWrite.swapExactTokensForTokens(
       amountInParsed,
