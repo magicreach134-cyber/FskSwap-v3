@@ -1,11 +1,35 @@
 /* =========================================================
    FskSwap – Global Constants (Production-Grade)
-   Network: BNB Testnet
+   Network: BNB Testnet (DEX-standard, Netlify-safe)
 ========================================================= */
 
 import type { AddressLike } from "ethers";
 
-/* ================= ENV VALIDATION ================= */
+/* ================= RPC CONFIG ================= */
+
+export enum ChainId {
+  BSC_TESTNET = 97,
+  BSC_MAINNET = 56,
+}
+
+export const RPC_URLS: Record<ChainId, string[]> = {
+  [ChainId.BSC_TESTNET]: [
+    "https://data-seed-prebsc-1-s1.binance.org:8545",
+    "https://data-seed-prebsc-2-s1.binance.org:8545",
+    "https://bsc-testnet.publicnode.com",
+  ],
+  [ChainId.BSC_MAINNET]: [
+    "https://bsc-dataseed.binance.org",
+    "https://bsc-dataseed1.defibit.io",
+    "https://bsc.publicnode.com",
+  ],
+};
+
+export const ACTIVE_CHAIN_ID = ChainId.BSC_TESTNET;
+
+export const RPC_URL = RPC_URLS[ACTIVE_CHAIN_ID][0];
+
+/* ================= ENV VALIDATION (Contracts Only) ================= */
 
 function requireEnv(key: string): string {
   const value = process.env[key];
@@ -14,18 +38,6 @@ function requireEnv(key: string): string {
   }
   return value;
 }
-
-/* ================= RPC ================= */
-
-export const RPC_URL: string =
-  process.env.NEXT_PUBLIC_RPC_URL ??
-  "https://data-seed-prebsc-1-s1.binance.org:8545";
-
-export const ENV_KEYS = {
-  RPC_URL: "NEXT_PUBLIC_RPC_URL",
-  WALLET_CONNECT_PROJECT_ID: "NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID",
-  BSCSCAN_API_KEY: "NEXT_PUBLIC_BSCSCAN_API_KEY",
-};
 
 /* ================= CONTRACT ADDRESSES ================= */
 
