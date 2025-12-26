@@ -1,37 +1,30 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useWallet } from "../../context/WalletContext";
 import { useSwap } from "../../hooks/useSwap";
-import { useWallet } from "../../context/WalletContext"; // <- NEW: use shared wallet context
 
 import WalletConnectButton from "../../components/WalletConnectButton";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import TokenSelect from "../../components/TokenSelect";
 
-import {
-  TOKEN_LIST,
-  TOKEN_ADDRESS_MAP,
-  APP_CONSTANTS,
-} from "../../utils/constants";
-
+import { TOKEN_LIST, TOKEN_ADDRESS_MAP, APP_CONSTANTS } from "../../utils/constants";
 import "../../styles/swap.css";
 
 type TokenSymbol = keyof typeof TOKEN_ADDRESS_MAP;
 
 export default function SwapPage() {
-  const { provider, signer, account } = useWallet(); // <- shared provider & signer
-  const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
-  const [toToken, setToToken] = useState(TOKEN_LIST[1]);
-  const [amountIn, setAmountIn] = useState("");
-  const [amountOut, setAmountOut] = useState("");
-  const [slippage, setSlippage] = useState<number>(
-    APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT
-  );
-  const [loading, setLoading] = useState(false);
-
+  const { provider, signer, account } = useWallet();
   const { getAmountOut, swapExactTokensForTokens } = useSwap(provider, signer);
 
-  // ---------------- estimate output ----------------
+  const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
+  const [toToken, setToToken] = useState(TOKEN_LIST[1]);
+
+  const [amountIn, setAmountIn] = useState("");
+  const [amountOut, setAmountOut] = useState("");
+  const [slippage, setSlippage] = useState(APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT);
+  const [loading, setLoading] = useState(false);
+
   const estimateAmountOut = useCallback(async () => {
     if (!amountIn || !getAmountOut) {
       setAmountOut("");
@@ -44,7 +37,7 @@ export default function SwapPage() {
         toToken.symbol as TokenSymbol,
         amountIn
       );
-      setAmountOut(out?.amountOut ?? ""); // <- ensure string from hook
+      setAmountOut(out ?? "");
     } catch (err) {
       console.error("Quote error:", err);
       setAmountOut("");
@@ -55,19 +48,18 @@ export default function SwapPage() {
     estimateAmountOut();
   }, [estimateAmountOut]);
 
-  // ---------------- switch tokens ----------------
   const handleSwitchTokens = () => {
     setFromToken(toToken);
     setToToken(fromToken);
     setAmountOut("");
   };
 
-  // ---------------- execute swap ----------------
   const handleSwap = async () => {
-    if (!signer || !amountIn || !amountOut || !account) return;
+    if (!signer || !amountIn || !amountOut) return;
 
     try {
       setLoading(true);
+
       await swapExactTokensForTokens({
         amountIn,
         fromToken: fromToken.symbol as TokenSymbol,
@@ -89,7 +81,6 @@ export default function SwapPage() {
 
   return (
     <div className="swap-page">
-      {/* Header */}
       <header className="swap-header">
         <div className="swap-brand">
           <img src="/logo.png" alt="FSKSwap" />
@@ -104,12 +95,11 @@ export default function SwapPage() {
         </nav>
 
         <div className="swap-header-actions">
-          <WalletConnectButton /> {/* <- now uses context internally */}
+          <WalletConnectButton />
           <ThemeSwitch />
         </div>
       </header>
 
-      {/* Swap Card */}
       <main className="swap-container">
         <h2>Token Swap</h2>
 
