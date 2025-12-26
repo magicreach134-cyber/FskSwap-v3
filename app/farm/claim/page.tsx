@@ -10,30 +10,28 @@ import useFarm from "@/hooks/useFarm";
 import "@/styles/staking.css";
 
 const FarmClaim = () => {
-  const [provider, setProvider] =
-    useState<ethers.providers.Web3Provider | null>(null);
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
   const [userAddress, setUserAddress] = useState<string>("");
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
-      const prov = new ethers.providers.Web3Provider(
-        (window as any).ethereum
-      );
+      const prov = new ethers.BrowserProvider((window as any).ethereum);
       setProvider(prov);
 
-      const signerInstance = prov.getSigner();
-      setSigner(signerInstance);
-
-      signerInstance.getAddress().then(setUserAddress).catch(() => {});
+      prov.getSigner().then((s) => {
+        setSigner(s);
+        s.getAddress().then(setUserAddress).catch(() => {});
+      });
     }
   }, []);
 
   const { farms, claim } = useFarm(signer);
 
-  const handleClaim = async (farmAddress: string) => {
+  // Ensure farm ID is passed as number if claim expects number
+  const handleClaim = async (farmId: number) => {
     try {
-      await claim(farmAddress);
+      await claim(farmId);
       alert("Claimed rewards successfully");
     } catch (err: any) {
       console.error(err);
@@ -62,9 +60,7 @@ const FarmClaim = () => {
 
         {farms.map((farm, idx) => {
           const claimable = signer
-            ? ethers.utils.formatEther(
-                farm.claimable?.[userAddress] ?? "0"
-              )
+            ? ethers.formatEther(farm.claimable?.[userAddress] ?? "0")
             : "0";
 
           return (
@@ -77,7 +73,7 @@ const FarmClaim = () => {
               </p>
 
               {parseFloat(claimable) > 0 && (
-                <button onClick={() => handleClaim(farm.address)}>
+                <button onClick={() => handleClaim(Number(farm.id))}>
                   Claim
                 </button>
               )}
