@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import { ethers, BrowserProvider, JsonRpcSigner } from "ethers";
 import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
-import usePresaleSearch from "@/hooks/usePresaleSearch";
-import { launchpadFactoryAddress, ABIS, TOKEN_COLORS } from "@/utils/constants";
+import { launchpadFactoryAddress, ABIS } from "@/utils/constants";
 
 interface Presale {
   address: string;
@@ -22,8 +21,8 @@ interface Presale {
 }
 
 export default function LaunchpadPage() {
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
+  const [provider, setProvider] = useState<BrowserProvider | null>(null);
+  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
   const [userAddress, setUserAddress] = useState<string>("");
   const [presales, setPresales] = useState<Presale[]>([]);
   const [contribution, setContribution] = useState<string>("");
@@ -33,7 +32,7 @@ export default function LaunchpadPage() {
     if (!window.ethereum) return;
 
     const init = async () => {
-      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const browserProvider = new BrowserProvider(window.ethereum);
       const signer = await browserProvider.getSigner();
       const address = await signer.getAddress();
 
@@ -73,29 +72,39 @@ export default function LaunchpadPage() {
               "function symbol() view returns (string)",
             ], signer);
 
-            const [token, softCap, hardCap, totalRaised, startTime, endTime, userContribution, finalized, name, symbol] =
-              await Promise.all([
-                c.token(),
-                c.softCap(),
-                c.hardCap(),
-                c.totalRaised(),
-                c.startTime(),
-                c.endTime(),
-                c.contributions(userAddress),
-                c.finalized(),
-                c.name(),
-                c.symbol()
-              ]);
+            const [
+              token,
+              softCap,
+              hardCap,
+              totalRaised,
+              startTime,
+              endTime,
+              userContribution,
+              finalized,
+              name,
+              symbol
+            ] = await Promise.all([
+              c.token(),
+              c.softCap(),
+              c.hardCap(),
+              c.totalRaised(),
+              c.startTime(),
+              c.endTime(),
+              c.contributions(userAddress),
+              c.finalized(),
+              c.name(),
+              c.symbol()
+            ]);
 
             return {
               address: addr,
               token,
-              softCap: ethers.utils.formatUnits(softCap, 18),
-              hardCap: ethers.utils.formatUnits(hardCap, 18),
-              totalRaised: ethers.utils.formatUnits(totalRaised, 18),
+              softCap: ethers.formatUnits(softCap, 18),
+              hardCap: ethers.formatUnits(hardCap, 18),
+              totalRaised: ethers.formatUnits(totalRaised, 18),
               startTime: Number(startTime),
               endTime: Number(endTime),
-              userContribution: ethers.utils.formatUnits(userContribution, 18),
+              userContribution: ethers.formatUnits(userContribution, 18),
               finalized,
               name,
               symbol,
@@ -112,8 +121,9 @@ export default function LaunchpadPage() {
     loadPresales();
   }, [signer, userAddress]);
 
+  /* ---------- CONTRIBUTE ---------- */
   const handleContribute = async (p: Presale) => {
-    if (!signer || !provider) return;
+    if (!signer) return alert("Connect wallet first");
 
     try {
       const presaleContract = new ethers.Contract(
@@ -122,7 +132,7 @@ export default function LaunchpadPage() {
         signer
       );
 
-      const tx = await presaleContract.contribute({ value: ethers.utils.parseEther(contribution) });
+      const tx = await presaleContract.contribute({ value: ethers.parseEther(contribution) });
       await tx.wait();
       alert("Contribution successful");
       setContribution("");
@@ -131,8 +141,9 @@ export default function LaunchpadPage() {
     }
   };
 
+  /* ---------- CLAIM TOKENS ---------- */
   const handleClaim = async (p: Presale) => {
-    if (!signer) return;
+    if (!signer) return alert("Connect wallet first");
 
     try {
       const presaleContract = new ethers.Contract(
@@ -151,11 +162,10 @@ export default function LaunchpadPage() {
 
   return (
     <div className="launchpad-page">
-      {/* ---------- HEADER ---------- */}
       <header className="launchpad-header">
         <div className="logo">
           <img src="/logo.png" alt="FSKSwap" />
-          <span>FSKSwap</span>
+          <span>FSKSwap Launchpad</span>
         </div>
 
         <nav>
@@ -171,8 +181,9 @@ export default function LaunchpadPage() {
         </div>
       </header>
 
-      {/* ---------- MAIN ---------- */}
       <main className="launchpad-container">
+        {presales.length === 0 && <p>No presales found.</p>}
+
         {presales.map((p) => {
           const active = Date.now() / 1000 >= p.startTime && Date.now() / 1000 <= p.endTime && !p.finalized;
           return (
