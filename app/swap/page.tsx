@@ -1,14 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ethers } from "ethers";
 
 import WalletConnectButton from "../../components/WalletConnectButton";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import TokenSelect from "../../components/TokenSelect";
 import { useSwap } from "../../hooks/useSwap";
-import { TOKEN_LIST, TOKEN_ADDRESS_MAP, APP_CONSTANTS } from "../../utils/constants";
+
+import {
+  TOKEN_LIST,
+  TOKEN_ADDRESS_MAP,
+  APP_CONSTANTS,
+} from "../../utils/constants";
+
 import "../../styles/swap.css";
+
+type TokenSymbol = keyof typeof TOKEN_ADDRESS_MAP;
 
 export default function SwapPage() {
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
@@ -17,88 +25,88 @@ export default function SwapPage() {
 
   const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
   const [toToken, setToToken] = useState(TOKEN_LIST[1]);
-  const [amountIn, setAmountIn] = useState<string>("");
-  const [amountOut, setAmountOut] = useState<string>("");
-  const [slippage, setSlippage] = useState<number>(APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT);
-  const [loading, setLoading] = useState<boolean>(false);
 
-  const { getAmountOut, swapExactTokensForTokens } = useSwap(provider, signer);
+  const [amountIn, setAmountIn] = useState("");
+  const [amountOut, setAmountOut] = useState("");
 
-  // ---------------- provider / signer ----------------
+  const [slippage, setSlippage] = useState<number>(
+    APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT
+  );
+
+  const [loading, setLoading] = useState(false);
+
+  const { getAmountOut, swapExactTokensForTokens } = useSwap(
+    provider,
+    signer
+  );
+
+  // ---------------- provider init ----------------
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (!(window as any).ethereum) return;
 
-    const p = new ethers.BrowserProvider((window as any).ethereum);
-    setProvider(p);
+    const browserProvider = new ethers.BrowserProvider(
+      (window as any).ethereum
+    );
 
-    p.getSigner().then((s) => {
+    setProvider(browserProvider);
+
+    browserProvider.getSigner().then((s) => {
       setSigner(s);
-      s.getAddress().then(setAccount);
+      s.getAddress().then(setAccount).catch(() => setAccount(""));
     });
   }, []);
 
   // ---------------- estimate output ----------------
-  useEffect(() => {
-    const estimate = async () => {
-      if (!amountIn || !getAmountOut) {
-        setAmountOut("");
-        return;
-      }
+  const estimateAmountOut = useCallback(async () => {
+    if (!amountIn || !getAmountOut) {
+      setAmountOut("");
+      return;
+    }
 
-      try {
-        const out = await getAmountOut(
-          fromToken.symbol as keyof typeof TOKEN_ADDRESS_MAP,
-          toToken.symbol as keyof typeof TOKEN_ADDRESS_MAP,
-          amountIn
-        );
-        setAmountOut(out ?? "");
-      } catch (err) {
-        console.error("Estimate failed:", err);
-        setAmountOut("");
-      }
-    };
+    try {
+      const out = await getAmountOut(
+        fromToken.symbol as TokenSymbol,
+        toToken.symbol as TokenSymbol,
+        amountIn
+      );
 
-    estimate();
+      setAmountOut(out ?? "");
+    } catch (err) {
+      console.error("Quote error:", err);
+      setAmountOut("");
+    }
   }, [amountIn, fromToken, toToken, getAmountOut]);
 
-  // ---------------- switch tokens ----------------
-  const handleSwitchTokens = async () => {
-    const temp = fromToken;
-    setFromToken(toToken);
-    setToToken(temp);
+  useEffect(() => {
+    estimateAmountOut();
+  }, [estimateAmountOut]);
 
-    // Recalculate output after switch
-    if (amountIn && getAmountOut) {
-      try {
-        const out = await getAmountOut(
-          toToken.symbol as keyof typeof TOKEN_ADDRESS_MAP,
-          fromToken.symbol as keyof typeof TOKEN_ADDRESS_MAP,
-          amountIn
-        );
-        setAmountOut(out ?? "");
-      } catch {
-        setAmountOut("");
-      }
-    }
+  // ---------------- switch tokens ----------------
+  const handleSwitchTokens = () => {
+    setFromToken(toToken);
+    setToToken(fromToken);
+    setAmountOut("");
   };
 
-  // ---------------- handle swap ----------------
+  // ---------------- execute swap ----------------
   const handleSwap = async () => {
-    if (!amountIn || !amountOut || !signer) return;
+    if (!signer || !amountIn || !amountOut) return;
 
     try {
       setLoading(true);
+
       await swapExactTokensForTokens({
         amountIn,
-        fromToken: fromToken.symbol as keyof typeof TOKEN_ADDRESS_MAP,
-        toToken: toToken.symbol as keyof typeof TOKEN_ADDRESS_MAP,
+        fromToken: fromToken.symbol as TokenSymbol,
+        toToken: toToken.symbol as TokenSymbol,
         to: account,
         slippagePercent: slippage,
       });
 
       setAmountIn("");
       setAmountOut("");
-      alert("Swap successful!");
+      alert("Swap successful");
     } catch (err: any) {
       console.error("Swap failed:", err);
       alert(err?.reason || err?.message || "Swap failed");
@@ -109,51 +117,61 @@ export default function SwapPage() {
 
   return (
     <div className="swap-page">
+      {/* ================= Header ================= */}
       <header className="swap-header">
-        <div className="logo">
+        <div className="swap-brand">
           <img src="/logo.png" alt="FSKSwap" />
           <span>FSKSwap</span>
         </div>
-        <nav>
+
+        <nav className="swap-nav">
           <a href="/swap">Swap</a>
           <a href="/launchpad">Launchpad</a>
           <a href="/farm">Farm</a>
           <a href="/flashswap">FlashSwap</a>
         </nav>
-        <div className="header-right">
+
+        <div className="swap-header-actions">
           <WalletConnectButton provider={provider} setSigner={setSigner} />
           <ThemeSwitch />
         </div>
       </header>
 
+      {/* ================= Swap Card ================= */}
       <main className="swap-container">
-        <h2>Swap Tokens</h2>
+        <h2>Token Swap</h2>
 
-        <div className="swap-card">
+        <div className={`swap-card ${loading ? "swap-loading" : ""}`}>
           <div className="swap-token-row">
-            <div className="swap-token-select">
+            <div className="swap-token-box">
               <label>From</label>
-              <TokenSelect selectedToken={fromToken} onSelect={setFromToken} />
+              <TokenSelect
+                selectedToken={fromToken}
+                onSelect={setFromToken}
+              />
             </div>
 
             <button
-              type="button"
               className="swap-switch-button"
               onClick={handleSwitchTokens}
-              title="Switch Tokens"
+              title="Switch tokens"
             >
               ⇅
             </button>
 
-            <div className="swap-token-select">
+            <div className="swap-token-box">
               <label>To</label>
-              <TokenSelect selectedToken={toToken} onSelect={setToToken} />
+              <TokenSelect
+                selectedToken={toToken}
+                onSelect={setToToken}
+              />
             </div>
           </div>
 
           <label>Amount In</label>
           <input
             type="number"
+            placeholder="0.0"
             value={amountIn}
             onChange={(e) => setAmountIn(e.target.value)}
           />
@@ -165,9 +183,16 @@ export default function SwapPage() {
             onChange={(e) => setSlippage(Number(e.target.value))}
           />
 
-          <p>Estimated Output: {amountOut}</p>
+          <div className="swap-info">
+            <span>Estimated Output</span>
+            <strong>{amountOut || "--"}</strong>
+          </div>
 
-          <button onClick={handleSwap} disabled={loading}>
+          <button
+            className="swap-submit"
+            onClick={handleSwap}
+            disabled={loading || !amountIn}
+          >
             {loading ? "Swapping..." : "Swap"}
           </button>
         </div>
