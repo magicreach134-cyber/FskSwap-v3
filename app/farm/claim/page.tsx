@@ -1,31 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
 import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import useFarm, { FarmView } from "@/hooks/useFarm";
+import { useWallet } from "@/context/WalletContext";
 
 import "@/styles/staking.css";
 
 const FarmClaim = () => {
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
-  const [userAddress, setUserAddress] = useState<string>("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).ethereum) {
-      const prov = new ethers.BrowserProvider((window as any).ethereum);
-      setProvider(prov);
-
-      prov.getSigner().then((s) => {
-        setSigner(s);
-        s.getAddress().then(setUserAddress).catch(() => {});
-      });
-    }
-  }, []);
-
+  const { signer, account } = useWallet();
   const { farms, claim } = useFarm(signer);
 
   const handleClaim = async (pid: number) => {
@@ -47,7 +33,7 @@ const FarmClaim = () => {
         </div>
 
         <div className="header-right">
-          <WalletConnectButton provider={provider} setSigner={setSigner} />
+          <WalletConnectButton />
           <ThemeSwitch />
         </div>
       </header>
@@ -55,10 +41,11 @@ const FarmClaim = () => {
       <main className="farm-container">
         <h2>Your Claimable Rewards</h2>
 
-        {farms.length === 0 && <p>No farms available.</p>}
+        {!signer && <p>Please connect your wallet to view farms.</p>}
+        {signer && farms.length === 0 && <p>No farms available.</p>}
 
         {farms.map((farm: FarmView) => {
-          const claimable = parseFloat(farm.pending);
+          const claimable = parseFloat(ethers.formatUnits(farm.pending, 18));
 
           return (
             <div key={farm.pid} className="farm-card">
@@ -66,7 +53,7 @@ const FarmClaim = () => {
                 <strong>Pair:</strong> {farm.name} ({farm.symbol})
               </p>
               <p>
-                <strong>Claimable:</strong> {farm.pending}
+                <strong>Claimable:</strong> {claimable}
               </p>
 
               {claimable > 0 && (
