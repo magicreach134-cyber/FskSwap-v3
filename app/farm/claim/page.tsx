@@ -5,7 +5,7 @@ import { ethers } from "ethers";
 
 import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
-import useFarm from "@/hooks/useFarm";
+import useFarm, { FarmView } from "@/hooks/useFarm";
 
 import "@/styles/staking.css";
 
@@ -28,10 +28,9 @@ const FarmClaim = () => {
 
   const { farms, claim } = useFarm(signer);
 
-  // Ensure farm ID is passed as number if claim expects number
-  const handleClaim = async (farmId: number) => {
+  const handleClaim = async (pid: number) => {
     try {
-      await claim(farmId);
+      await claim(pid);
       alert("Claimed rewards successfully");
     } catch (err: any) {
       console.error(err);
@@ -58,24 +57,20 @@ const FarmClaim = () => {
 
         {farms.length === 0 && <p>No farms available.</p>}
 
-        {farms.map((farm, idx) => {
-          const claimable = signer
-            ? ethers.formatEther(farm.claimable?.[userAddress] ?? "0")
-            : "0";
+        {farms.map((farm: FarmView) => {
+          const claimable = parseFloat(farm.pending);
 
           return (
-            <div key={idx} className="farm-card">
+            <div key={farm.pid} className="farm-card">
               <p>
                 <strong>Pair:</strong> {farm.name} ({farm.symbol})
               </p>
               <p>
-                <strong>Claimable:</strong> {claimable}
+                <strong>Claimable:</strong> {farm.pending}
               </p>
 
-              {parseFloat(claimable) > 0 && (
-                <button onClick={() => handleClaim(Number(farm.id))}>
-                  Claim
-                </button>
+              {claimable > 0 && (
+                <button onClick={() => handleClaim(farm.pid)}>Claim</button>
               )}
             </div>
           );
