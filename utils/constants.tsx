@@ -26,7 +26,6 @@ export const RPC_URLS: Record<ChainId, string[]> = {
 };
 
 export const ACTIVE_CHAIN_ID = ChainId.BSC_TESTNET;
-
 export const RPC_URL = RPC_URLS[ACTIVE_CHAIN_ID][0];
 
 /* ================= ENV VALIDATION (Contracts Only) ================= */
@@ -179,9 +178,9 @@ export const APP_CONSTANTS = {
 
 /* ================= SPECIFIC EXPORTS ================= */
 
-export { 
-  FSKMegaLocker as FSKMegaLockerABI, 
-  RPC_URL as DEFAULT_BNB_RPC 
-} from "./abis";
+// Active BNB RPC for Testnet
+export const DEFAULT_BNB_RPC = RPC_URL;
 
+// ABI & Locker
+export { FSKMegaLocker as FSKMegaLockerABI };
 export { FSKMegaLocker };
