@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { ethers, Contract, Signer } from "ethers";
-import { stakingAddress, ABIS, MINIMAL_ERC20_ABI } from "../utils/constants";
+import { stakingAddress, ABIS, MINIMAL_ERC20_ABI, DEFAULT_BNB_RPC } from "@/utils/constants";
 
 export interface FarmView {
   pid: number;
@@ -21,14 +21,13 @@ const useFarm = (signer?: Signer | null, refreshInterval = 15000) => {
 
   /* ---------- INIT STAKING CONTRACT ---------- */
   useEffect(() => {
-    if (!signer) return;
-
     const init = async () => {
       try {
-        const address = await signer.getAddress();
+        const provider = signer ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC);
+        const address = signer ? await signer.getAddress() : "";
         setUser(address);
 
-        const contract = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
+        const contract = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer ?? provider);
         setStaking(contract);
       } catch (err) {
         console.error("Staking init error:", err);
@@ -48,7 +47,7 @@ const useFarm = (signer?: Signer | null, refreshInterval = 15000) => {
 
       for (let pid = 0n; pid < poolLength; pid++) {
         const pool = await staking.poolInfo(pid);
-        const pending = await staking.pendingReward(pid, user);
+        const pending: bigint = await staking.pendingReward(pid, user);
         const userInfo = await staking.userInfo(pid, user);
 
         const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer);
