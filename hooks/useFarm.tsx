@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ethers, Contract } from "ethers";
+import { ethers, Contract, Signer } from "ethers";
 import { stakingAddress, ABIS, MINIMAL_ERC20_ABI } from "../utils/constants";
 
 export interface FarmView {
@@ -13,7 +13,7 @@ export interface FarmView {
   pending: string;
 }
 
-const useFarm = (signer?: ethers.Signer | null) => {
+const useFarm = (signer?: Signer | null) => {
   const [staking, setStaking] = useState<Contract | null>(null);
   const [farms, setFarms] = useState<FarmView[]>([]);
   const [user, setUser] = useState<string>("");
@@ -27,12 +27,7 @@ const useFarm = (signer?: ethers.Signer | null) => {
         const address = await signer.getAddress();
         setUser(address);
 
-        const contract = new Contract(
-          stakingAddress,
-          ABIS.FSKSwapLPStaking,
-          signer
-        );
-
+        const contract = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
         setStaking(contract);
       } catch (err) {
         console.error("Staking init error:", err);
@@ -103,7 +98,7 @@ const useFarm = (signer?: ethers.Signer | null) => {
   };
 
   const unstake = async (pid: number, amount: string) => {
-    if (!staking) throw new Error("Staking contract not ready");
+    if (!staking || !user) throw new Error("Staking contract not ready");
 
     const pool = await staking.poolInfo(pid);
     const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer);
@@ -115,7 +110,7 @@ const useFarm = (signer?: ethers.Signer | null) => {
   };
 
   const claim = async (pid: number) => {
-    if (!staking) throw new Error("Staking contract not ready");
+    if (!staking || !user) throw new Error("Staking contract not ready");
 
     const tx = await staking.claim(pid);
     return await tx.wait();
