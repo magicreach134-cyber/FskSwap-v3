@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { JsonRpcSigner, BrowserProvider } from "ethers";
+import { JsonRpcSigner, BrowserProvider }
 import WalletConnectProvider from "@walletconnect/web3-provider";
 
 interface WalletContextType {
