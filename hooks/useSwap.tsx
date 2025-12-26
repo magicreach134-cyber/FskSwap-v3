@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ethers } from "ethers";
+import { ethers, Contract, MaxUint256 } from "ethers";
 
 import {
   ABIS,
@@ -29,12 +29,12 @@ export const useSwap = (
 
   const routerRead = useMemo(() => {
     if (!provider) return null;
-    return new ethers.Contract(routerAddress, ABIS.FSKRouter, provider);
+    return new Contract(routerAddress, ABIS.FSKRouter, provider);
   }, [provider]);
 
   const routerWrite = useMemo(() => {
     if (!signer) return null;
-    return new ethers.Contract(routerAddress, ABIS.FSKRouter, signer);
+    return new Contract(routerAddress, ABIS.FSKRouter, signer);
   }, [signer]);
 
   /* ================= ERC20 Helpers ================= */
@@ -42,11 +42,7 @@ export const useSwap = (
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
     if (!provider) return 18;
     try {
-      const token = new ethers.Contract(
-        tokenAddress,
-        MINIMAL_ERC20_ABI,
-        provider
-      );
+      const token = new Contract(tokenAddress, MINIMAL_ERC20_ABI, provider);
       return Number(await token.decimals());
     } catch {
       return 18;
@@ -71,35 +67,33 @@ export const useSwap = (
     let bestOut: bigint = 0n;
     let bestPath: string[] = directPath;
 
-    // Direct path
+    // Try direct path
     try {
-      const amounts = await routerRead.getAmountsOut(
+      const amounts: bigint[] = await routerRead.getAmountsOut(
         amountInParsed,
         directPath
       );
-      const out = amounts[amounts.length - 1] as bigint;
+      const out = amounts[amounts.length - 1];
       if (out > bestOut) {
         bestOut = out;
         bestPath = directPath;
       }
     } catch {}
 
-    // Via WBNB
+    // Try via WBNB
     try {
-      const amounts = await routerRead.getAmountsOut(
+      const amounts: bigint[] = await routerRead.getAmountsOut(
         amountInParsed,
         wbnbPath
       );
-      const out = amounts[amounts.length - 1] as bigint;
+      const out = amounts[amounts.length - 1];
       if (out > bestOut) {
         bestOut = out;
         bestPath = wbnbPath;
       }
     } catch {}
 
-    if (bestOut === 0n) {
-      throw new Error("No liquidity for this pair");
-    }
+    if (bestOut === 0n) throw new Error("No liquidity for this pair");
 
     return { path: bestPath, amountOut: bestOut };
   };
@@ -125,48 +119,30 @@ export const useSwap = (
     to,
     slippagePercent = APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT,
   }: SwapParams) => {
-    if (!routerWrite || !signer) {
-      throw new Error("Wallet not connected");
-    }
+    if (!routerWrite || !signer) throw new Error("Wallet not connected");
 
-    const { path, amountOut } = await findBestPath(
-      fromToken,
-      toToken,
-      amountIn
-    );
-
+    const { path, amountOut } = await findBestPath(fromToken, toToken, amountIn);
     const decimalsIn = await getTokenDecimals(path[0]);
     const amountInParsed = ethers.parseUnits(amountIn, decimalsIn);
 
     // Slippage protection
     const slippageBps = BigInt(Math.floor(slippagePercent * 100));
-    const amountOutMin =
-      (amountOut * (10000n - slippageBps)) / 10000n;
+    const amountOutMin = (amountOut * (10000n - slippageBps)) / 10000n;
 
-    /* -------- Approve -------- */
+    /* -------- Approve Token -------- */
 
-    const token = new ethers.Contract(
-      path[0],
-      MINIMAL_ERC20_ABI,
-      signer
-    );
-
+    const token = new Contract(path[0], MINIMAL_ERC20_ABI, signer);
     const owner = await signer.getAddress();
     const allowance: bigint = await token.allowance(owner, routerAddress);
 
     if (allowance < amountInParsed) {
-      const approveTx = await token.approve(
-        routerAddress,
-        ethers.MaxUint256
-      );
+      const approveTx = await token.approve(routerAddress, MaxUint256);
       await approveTx.wait();
     }
 
-    /* -------- Swap -------- */
+    /* -------- Execute Swap -------- */
 
-    const deadline =
-      Math.floor(Date.now() / 1000) +
-      APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
+    const deadline = Math.floor(Date.now() / 1000) + APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
 
     const tx = await routerWrite.swapExactTokensForTokens(
       amountInParsed,
