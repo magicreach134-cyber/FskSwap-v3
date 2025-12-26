@@ -6,13 +6,10 @@ import { useEffect, useState } from "react";
 
 export default function FarmPage() {
   const { signer, account } = useWallet();
-  const { farms, stake, unstake, claim } = useFarm(signer);
-
-  // separate loading states per farm and action
+  const { farms, stake, unstake, claim, reloadFarms } = useFarm(signer); // add reloadFarms
   const [loadingMap, setLoadingMap] = useState<Record<number, { stake: boolean; unstake: boolean; claim: boolean }>>({});
 
   useEffect(() => {
-    // initialize loading map for all farms
     const map: Record<number, { stake: boolean; unstake: boolean; claim: boolean }> = {};
     farms.forEach((farm) => {
       if (!loadingMap[farm.pid]) {
@@ -41,6 +38,9 @@ export default function FarmPage() {
       if (action === "stake") await stake(pid, amount!);
       if (action === "unstake") await unstake(pid, amount!);
       if (action === "claim") await claim(pid);
+
+      // instant refresh of farm balances
+      if (reloadFarms) await reloadFarms();
     } catch (err) {
       console.error(`${action} failed for pid ${pid}:`, err);
     } finally {
