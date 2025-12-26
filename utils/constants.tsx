@@ -1,5 +1,23 @@
-// ================= RPC =================
-export const RPC_URL =
+/* =========================================================
+   FskSwap – Global Constants (Production-Grade)
+   Network: BNB Testnet
+========================================================= */
+
+import type { AddressLike } from "ethers";
+
+/* ================= ENV VALIDATION ================= */
+
+function requireEnv(key: string): string {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`[ENV ERROR] Missing environment variable: ${key}`);
+  }
+  return value;
+}
+
+/* ================= RPC ================= */
+
+export const RPC_URL: string =
   process.env.NEXT_PUBLIC_RPC_URL ??
   "https://data-seed-prebsc-1-s1.binance.org:8545";
 
@@ -9,19 +27,21 @@ export const ENV_KEYS = {
   BSCSCAN_API_KEY: "NEXT_PUBLIC_BSCSCAN_API_KEY",
 };
 
-// ================= CONTRACT ADDRESSES =================
-export const CONTRACTS = {
-  FSKMegaLocker: process.env.NEXT_PUBLIC_LOCKER_FACTORY_ADDRESS!,
-  FSKLaunchpadFactory: process.env.NEXT_PUBLIC_LAUNCHPAD_FACTORY_ADDRESS!,
-  FSKFeeCollector: process.env.NEXT_PUBLIC_FEECOLLECTOR_ADDRESS!,
-  FskFlashSwap: process.env.NEXT_PUBLIC_FLASHSWAP_ADDRESS!,
-  FskHelpFundPool: process.env.NEXT_PUBLIC_HELPFUND_ADDRESS!,
-  FSKRouterV3: process.env.NEXT_PUBLIC_ROUTER_ADDRESS!,
-  FskFactoryV2: process.env.NEXT_PUBLIC_FACTORY_ADDRESS!,
-  FSKSwapLPStaking: process.env.NEXT_PUBLIC_STAKING_ADDRESS!,
-};
+/* ================= CONTRACT ADDRESSES ================= */
 
-// Shorthands
+export const CONTRACTS = {
+  FSKMegaLocker: requireEnv("NEXT_PUBLIC_LOCKER_FACTORY_ADDRESS"),
+  FSKLaunchpadFactory: requireEnv("NEXT_PUBLIC_LAUNCHPAD_FACTORY_ADDRESS"),
+  FSKFeeCollector: requireEnv("NEXT_PUBLIC_FEECOLLECTOR_ADDRESS"),
+  FskFlashSwap: requireEnv("NEXT_PUBLIC_FLASHSWAP_ADDRESS"),
+  FskHelpFundPool: requireEnv("NEXT_PUBLIC_HELPFUND_ADDRESS"),
+  FSKRouterV3: requireEnv("NEXT_PUBLIC_ROUTER_ADDRESS"),
+  FskFactoryV2: requireEnv("NEXT_PUBLIC_FACTORY_ADDRESS"),
+  FSKSwapLPStaking: requireEnv("NEXT_PUBLIC_STAKING_ADDRESS"),
+} as const;
+
+/* ================= SHORTHANDS ================= */
+
 export const routerAddress = CONTRACTS.FSKRouterV3;
 export const factoryAddress = CONTRACTS.FskFactoryV2;
 export const launchpadFactoryAddress = CONTRACTS.FSKLaunchpadFactory;
@@ -31,19 +51,21 @@ export const lockerAddress = CONTRACTS.FSKMegaLocker;
 export const stakingAddress = CONTRACTS.FSKSwapLPStaking;
 export const helpFundPoolAddress = CONTRACTS.FskHelpFundPool;
 
-// ================= TOKENS =================
-export const TOKENS = {
-  BTC: process.env.NEXT_PUBLIC_BTC_ADDRESS!,
-  ETH: process.env.NEXT_PUBLIC_ETH_ADDRESS!,
-  SOL: process.env.NEXT_PUBLIC_SOL_ADDRESS!,
-  USDC: process.env.NEXT_PUBLIC_USDC_ADDRESS!,
-  FUSDT: process.env.NEXT_PUBLIC_FUSDT_ADDRESS!,
-  WBNB: process.env.NEXT_PUBLIC_WBNB_ADDRESS!,
-  FSK: process.env.NEXT_PUBLIC_FSK_ADDRESS!,
-};
+/* ================= TOKENS ================= */
 
-// Required by Swap, FlashSwap, Router hooks
-export const TOKEN_ADDRESS_MAP: Record<string, string> = {
+export const TOKENS = {
+  FSK: requireEnv("NEXT_PUBLIC_FSK_ADDRESS"),
+  FUSDT: requireEnv("NEXT_PUBLIC_FUSDT_ADDRESS"),
+  USDC: requireEnv("NEXT_PUBLIC_USDC_ADDRESS"),
+  WBNB: requireEnv("NEXT_PUBLIC_WBNB_ADDRESS"),
+  BTC: requireEnv("NEXT_PUBLIC_BTC_ADDRESS"),
+  ETH: requireEnv("NEXT_PUBLIC_ETH_ADDRESS"),
+  SOL: requireEnv("NEXT_PUBLIC_SOL_ADDRESS"),
+} as const;
+
+/* ================= TOKEN MAP ================= */
+
+export const TOKEN_ADDRESS_MAP: Record<string, AddressLike> = {
   FSK: TOKENS.FSK,
   FUSDT: TOKENS.FUSDT,
   USDC: TOKENS.USDC,
@@ -53,7 +75,15 @@ export const TOKEN_ADDRESS_MAP: Record<string, string> = {
   SOL: TOKENS.SOL,
 };
 
-export const TOKEN_LIST = [
+/* ================= TOKEN LIST (UI + ROUTER) ================= */
+
+export type TokenMeta = {
+  symbol: string;
+  address: AddressLike;
+  decimals: number;
+};
+
+export const TOKEN_LIST: TokenMeta[] = [
   { symbol: "FSK", address: TOKENS.FSK, decimals: 18 },
   { symbol: "FUSDT", address: TOKENS.FUSDT, decimals: 18 },
   { symbol: "USDC", address: TOKENS.USDC, decimals: 18 },
@@ -63,7 +93,9 @@ export const TOKEN_LIST = [
   { symbol: "SOL", address: TOKENS.SOL, decimals: 18 },
 ];
 
-export const TOKEN_COLORS = {
+/* ================= TOKEN COLORS ================= */
+
+export const TOKEN_COLORS: Record<string, string> = {
   FSK: "#f6c94d",
   FUSDT: "#e06b3a",
   USDC: "#2a9df4",
@@ -73,7 +105,8 @@ export const TOKEN_COLORS = {
   SOL: "#66f9a1",
 };
 
-// ================= ABIS =================
+/* ================= ABIS ================= */
+
 import BTC from "./abis/BTC.json";
 import ETH from "./abis/ETH.json";
 import SOL from "./abis/SOL.json";
@@ -111,21 +144,23 @@ export const ABIS = {
   FskFlashSwap,
   FSKMegaLocker,
   IFSKRouter,
-};
+} as const;
 
-// ================= MINIMAL ERC20 =================
+/* ================= MINIMAL ERC20 ================= */
+
 export const MINIMAL_ERC20_ABI = [
-  "function balanceOf(address) view returns (uint256)",
+  "function balanceOf(address owner) view returns (uint256)",
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
   "function name() view returns (string)",
-  "function approve(address,uint256) returns (bool)",
-  "function allowance(address,address) view returns (uint256)",
-  "function transfer(address,uint256) returns (bool)",
-];
+  "function approve(address spender, uint256 value) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function transfer(address to, uint256 value) returns (bool)",
+] as const;
 
-// ================= APP =================
+/* ================= APP CONSTANTS ================= */
+
 export const APP_CONSTANTS = {
-  DEFAULT_DEADLINE_SECONDS: 1200,
-  DEFAULT_SLIPPAGE_PERCENT: 0.5,
-};
+  DEFAULT_DEADLINE_SECONDS: 1200, // 20 minutes
+  DEFAULT_SLIPPAGE_PERCENT: 0.5,  // 0.5%
+} as const;
