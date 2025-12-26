@@ -176,3 +176,12 @@ export const APP_CONSTANTS = {
   DEFAULT_DEADLINE_SECONDS: 1200, // 20 minutes
   DEFAULT_SLIPPAGE_PERCENT: 0.5,  // 0.5%
 } as const;
+
+/* ================= SPECIFIC EXPORTS ================= */
+
+export { 
+  FSKMegaLocker as FSKMegaLockerABI, 
+  RPC_URL as DEFAULT_BNB_RPC 
+} from "./abis";
+
+export { FSKMegaLocker };
