@@ -5,7 +5,7 @@ import { useWallet } from "../context/WalletContext";
 
 const WalletConnectButton = () => {
   const { account, connectWallet, disconnectWallet } = useWallet();
-  const [shortAccount, setShortAccount] = useState<string>("");
+  const [shortAccount, setShortAccount] = useState("");
 
   useEffect(() => {
     if (account) {
@@ -15,16 +15,17 @@ const WalletConnectButton = () => {
     }
   }, [account]);
 
-  // Optional: handle account change from MetaMask
+  // Listen for MetaMask account changes
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
       const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
           disconnectWallet();
         } else {
-          connectWallet("metamask"); // reconnect with new account
+          connectWallet("metamask"); // Reconnect with new account
         }
       };
+
       (window as any).ethereum.on("accountsChanged", handleAccountsChanged);
 
       return () => {
