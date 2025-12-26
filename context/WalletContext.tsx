@@ -1,12 +1,12 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { ethers } from "ethers";
+import { JsonRpcSigner, BrowserProvider } from "ethers";
 import WalletConnectProvider from "@walletconnect/web3-provider";
 
 interface WalletContextType {
-  provider: ethers.BrowserProvider | null;
-  signer: ethers.Signer | null;
+  provider: BrowserProvider | null;
+  signer: JsonRpcSigner | null;
   account: string;
   connectWallet: (type: "metamask" | "trustwallet" | "walletconnect") => Promise<void>;
   disconnectWallet: () => void;
@@ -27,18 +27,17 @@ interface WalletProviderProps {
 }
 
 export const WalletProvider = ({ children }: WalletProviderProps) => {
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [provider, setProvider] = useState<BrowserProvider | null>(null);
+  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
   const [account, setAccount] = useState<string>("");
 
-  // Connect wallet
   const connectWallet = async (type: "metamask" | "trustwallet" | "walletconnect") => {
     try {
-      let web3Provider: ethers.BrowserProvider | null = null;
+      let web3Provider: BrowserProvider | null = null;
 
-      if ((type === "metamask" || type === "trustwallet") && (window as any).ethereum) {
+      if ((type === "metamask" || type === "trustwallet") && typeof window !== "undefined" && (window as any).ethereum) {
         await (window as any).ethereum.request({ method: "eth_requestAccounts" });
-        web3Provider = new ethers.BrowserProvider((window as any).ethereum);
+        web3Provider = new BrowserProvider((window as any).ethereum);
       }
 
       if (type === "walletconnect") {
@@ -47,7 +46,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
           chainId: 97,
         });
         await wcProvider.enable();
-        web3Provider = new ethers.BrowserProvider(wcProvider as any);
+        web3Provider = new BrowserProvider(wcProvider as any);
       }
 
       if (!web3Provider) throw new Error("No provider detected");
@@ -63,14 +62,12 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
     }
   };
 
-  // Disconnect wallet
   const disconnectWallet = () => {
     setProvider(null);
     setSigner(null);
     setAccount("");
   };
 
-  // Handle account change (MetaMask/Trust Wallet)
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
       const handleAccountsChanged = (accounts: string[]) => {
@@ -81,11 +78,14 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
         }
       };
 
+      const handleChainChanged = () => window.location.reload();
+
       (window as any).ethereum.on("accountsChanged", handleAccountsChanged);
-      (window as any).ethereum.on("chainChanged", () => window.location.reload());
+      (window as any).ethereum.on("chainChanged", handleChainChanged);
 
       return () => {
         (window as any).ethereum.removeListener("accountsChanged", handleAccountsChanged);
+        (window as any).ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
   }, []);
