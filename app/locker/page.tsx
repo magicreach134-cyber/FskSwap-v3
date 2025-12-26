@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import useLocker from "../../hooks/useLocker";
-import useWallet from "../../hooks/useWallet";
-import WalletConnectButton from "../../components/WalletConnectButton";
-import ThemeSwitch from "../../components/ThemeSwitch";
-import "../../styles/locker.css";
+import useLocker, { Lock, Vesting } from "@/hooks/useLocker";
+import { useWallet } from "@/hooks/useWallet";
+import WalletConnectButton from "@/components/WalletConnectButton";
+import ThemeSwitch from "@/components/ThemeSwitch";
+import "@/styles/locker.css";
 
 const LockerPage = () => {
   const { signer, account } = useWallet();
@@ -20,18 +20,18 @@ const LockerPage = () => {
     claimVesting,
   } = useLocker(signer);
 
-  const [locks, setLocks] = useState<any[]>([]);
-  const [vestings, setVestings] = useState<any[]>([]);
+  const [locks, setLocks] = useState<(Lock & { id: number })[]>([]);
+  const [vestings, setVestings] = useState<(Vesting & { id: number })[]>([]);
   const [loading, setLoading] = useState(false);
 
   /* ---------------- Load Locks & Vestings ---------------- */
   useEffect(() => {
     if (!lockerContract || !account) return;
 
-    const load = async () => {
+    const loadData = async () => {
       setLoading(true);
-
       try {
+        // Load locks
         const lockIds = await getOwnerLocks(account);
         const lockData = await Promise.all(
           lockIds.map(async (id) => {
@@ -39,8 +39,9 @@ const LockerPage = () => {
             return lock ? { id, ...lock } : null;
           })
         );
-        setLocks(lockData.filter(Boolean));
+        setLocks(lockData.filter(Boolean) as (Lock & { id: number })[]);
 
+        // Load vestings
         const vestIds = await getBeneficiaryVestings(account);
         const vestData = await Promise.all(
           vestIds.map(async (id) => {
@@ -48,15 +49,14 @@ const LockerPage = () => {
             return vest ? { id, ...vest } : null;
           })
         );
-        setVestings(vestData.filter(Boolean));
+        setVestings(vestData.filter(Boolean) as (Vesting & { id: number })[]);
       } catch (err) {
         console.error("Failed to load locks/vestings:", err);
       }
-
       setLoading(false);
     };
 
-    load();
+    loadData();
   }, [lockerContract, account]);
 
   /* ---------------- Actions ---------------- */
@@ -65,8 +65,10 @@ const LockerPage = () => {
     setLoading(true);
     try {
       await withdrawFromLock(lockId, account, amount);
-      const updated = await getLock(lockId);
-      setLocks((prev) => prev.map((l) => (l.id === lockId ? { ...l, ...updated } : l)));
+      const updatedLock = await getLock(lockId);
+      setLocks((prev) =>
+        prev.map((l) => (l.id === lockId && updatedLock ? { id: lockId, ...updatedLock } : l))
+      );
     } catch (err: any) {
       alert("Withdraw failed: " + (err?.message || err));
     }
@@ -77,8 +79,10 @@ const LockerPage = () => {
     setLoading(true);
     try {
       await claimVesting(vestId);
-      const updated = await getVesting(vestId);
-      setVestings((prev) => prev.map((v) => (v.id === vestId ? { ...v, ...updated } : v)));
+      const updatedVesting = await getVesting(vestId);
+      setVestings((prev) =>
+        prev.map((v) => (v.id === vestId && updatedVesting ? { id: vestId, ...updatedVesting } : v))
+      );
     } catch (err: any) {
       alert("Claim failed: " + (err?.message || err));
     }
@@ -104,18 +108,10 @@ const LockerPage = () => {
           {locks.length === 0 && <p>No locks found.</p>}
           {locks.map((l) => (
             <div key={l.id} className="lock-card">
-              <p>
-                <strong>Token:</strong> {l.token}
-              </p>
-              <p>
-                <strong>Amount:</strong> {l.amount}
-              </p>
-              <p>
-                <strong>Unlock:</strong> {new Date(l.unlockTime * 1000).toLocaleString()}
-              </p>
-              <p>
-                <strong>Withdrawn:</strong> {l.withdrawn ? "Yes" : "No"}
-              </p>
+              <p><strong>Token:</strong> {l.token}</p>
+              <p><strong>Amount:</strong> {l.amount}</p>
+              <p><strong>Unlock:</strong> {new Date(l.unlockTime * 1000).toLocaleString()}</p>
+              <p><strong>Withdrawn:</strong> {l.withdrawn ? "Yes" : "No"}</p>
               {!l.withdrawn && (
                 <button onClick={() => handleWithdrawLock(l.id, l.amount)}>Withdraw</button>
               )}
@@ -129,27 +125,17 @@ const LockerPage = () => {
           {vestings.length === 0 && <p>No vestings found.</p>}
           {vestings.map((v) => (
             <div key={v.id} className="vesting-card">
-              <p>
-                <strong>Token:</strong> {v.token}
-              </p>
-              <p>
-                <strong>Total:</strong> {v.amount}
-              </p>
-              <p>
-                <strong>Claimed:</strong> {v.claimed}
-              </p>
-              <p>
-                <strong>Start:</strong> {new Date(v.start * 1000).toLocaleString()}
-              </p>
-              <p>
-                <strong>Duration:</strong> {v.duration} seconds
-              </p>
-              <span
-                className={`vesting-status ${v.claimed === v.amount ? "claimed" : "pending"}`}
-              >
+              <p><strong>Token:</strong> {v.token}</p>
+              <p><strong>Total:</strong> {v.amount}</p>
+              <p><strong>Claimed:</strong> {v.claimed}</p>
+              <p><strong>Start:</strong> {new Date(v.start * 1000).toLocaleString()}</p>
+              <p><strong>Duration:</strong> {v.duration} seconds</p>
+              <span className={`vesting-status ${v.claimed === v.amount ? "claimed" : "pending"}`}>
                 {v.claimed === v.amount ? "Claimed" : "Pending"}
               </span>
-              <button onClick={() => handleClaimVesting(v.id)}>Claim</button>
+              {v.claimed !== v.amount && (
+                <button onClick={() => handleClaimVesting(v.id)}>Claim</button>
+              )}
             </div>
           ))}
         </section>
