@@ -1,51 +1,70 @@
-// hooks/useLocker.ts
 "use client";
 
 import { useState, useEffect } from "react";
-import { ethers } from "ethers";
+import { ethers, Contract } from "ethers";
+
 import { FSKMegaLocker, FSKMegaLockerABI } from "../utils/constants";
 import ERC20ABI from "../utils/abis/ERC20.json";
 
-const useLocker = (signer?: ethers.Signer) => {
-  const [lockerContract, setLockerContract] = useState<ethers.Contract | null>(null);
+export interface Lock {
+  lockerOwner: string;
+  token: string;
+  amount: string;
+  unlockTime: number;
+  withdrawn: boolean;
+}
 
+export interface Vesting {
+  beneficiary: string;
+  token: string;
+  amount: string;
+  start: number;
+  duration: number;
+  claimed: string;
+}
+
+const useLocker = (signer?: ethers.Signer | null) => {
+  const [lockerContract, setLockerContract] = useState<Contract | null>(null);
+
+  /* ---------- INIT CONTRACT ---------- */
   useEffect(() => {
     if (signer) {
       try {
-        const contract = new ethers.Contract(FSKMegaLocker, FSKMegaLockerABI, signer);
+        const contract = new Contract(FSKMegaLocker, FSKMegaLockerABI, signer);
         setLockerContract(contract);
       } catch (err) {
         console.error("Failed to initialize locker contract:", err);
       }
+    } else {
+      setLockerContract(null);
     }
   }, [signer]);
 
-  // Helper: get decimals of a token
+  /* ---------- TOKEN DECIMALS ---------- */
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
     if (!signer) return 18;
     try {
-      const tokenContract = new ethers.Contract(tokenAddress, ERC20ABI, signer);
-      const decimals: number = await tokenContract.decimals();
-      return decimals;
+      const tokenContract = new Contract(tokenAddress, ERC20ABI, signer);
+      return Number(await tokenContract.decimals());
     } catch (err) {
       console.error("getTokenDecimals error:", err);
-      return 18; // fallback
+      return 18;
     }
   };
 
-  // ---------------- Locks ----------------
+  /* ---------- LOCKS ---------- */
   const getOwnerLocks = async (owner: string): Promise<number[]> => {
     if (!lockerContract) return [];
     try {
-      const locks: ethers.BigNumber[] = await lockerContract.getOwnerLocks(owner);
-      return locks.map((bn) => bn.toNumber());
+      const locks: bigint[] = await lockerContract.getOwnerLocks(owner);
+      return locks.map((bn) => Number(bn));
     } catch (err) {
       console.error("getOwnerLocks error:", err);
       return [];
     }
   };
 
-  const getLock = async (lockId: number) => {
+  const getLock = async (lockId: number): Promise<Lock | null> => {
     if (!lockerContract) return null;
     try {
       const lock = await lockerContract.getLock(lockId);
@@ -53,8 +72,8 @@ const useLocker = (signer?: ethers.Signer) => {
       return {
         lockerOwner: lock.lockerOwner,
         token: lock.token,
-        amount: ethers.utils.formatUnits(lock.amount, decimals),
-        unlockTime: lock.unlockTime.toNumber(),
+        amount: ethers.formatUnits(lock.amount, decimals),
+        unlockTime: Number(lock.unlockTime),
         withdrawn: lock.withdrawn,
       };
     } catch (err) {
@@ -63,7 +82,11 @@ const useLocker = (signer?: ethers.Signer) => {
     }
   };
 
-  const withdrawFromLock = async (lockId: number, to: string, amount: string) => {
+  const withdrawFromLock = async (
+    lockId: number,
+    to: string,
+    amount: string
+  ) => {
     if (!lockerContract) throw new Error("Locker contract not initialized");
     try {
       const lock = await lockerContract.getLock(lockId);
@@ -71,7 +94,7 @@ const useLocker = (signer?: ethers.Signer) => {
       const tx = await lockerContract.withdrawFromLock(
         lockId,
         to,
-        ethers.utils.parseUnits(amount, decimals)
+        ethers.parseUnits(amount, decimals)
       );
       return await tx.wait();
     } catch (err) {
@@ -80,19 +103,19 @@ const useLocker = (signer?: ethers.Signer) => {
     }
   };
 
-  // ---------------- Vestings ----------------
+  /* ---------- VESTINGS ---------- */
   const getBeneficiaryVestings = async (account: string): Promise<number[]> => {
     if (!lockerContract) return [];
     try {
-      const vestIds: ethers.BigNumber[] = await lockerContract.getBeneficiaryVestings(account);
-      return vestIds.map((id) => id.toNumber());
+      const vestIds: bigint[] = await lockerContract.getBeneficiaryVestings(account);
+      return vestIds.map((id) => Number(id));
     } catch (err) {
       console.error("getBeneficiaryVestings error:", err);
       return [];
     }
   };
 
-  const getVesting = async (vestId: number) => {
+  const getVesting = async (vestId: number): Promise<Vesting | null> => {
     if (!lockerContract) return null;
     try {
       const v = await lockerContract.vestings(vestId);
@@ -100,10 +123,10 @@ const useLocker = (signer?: ethers.Signer) => {
       return {
         beneficiary: v.beneficiary,
         token: v.token,
-        amount: ethers.utils.formatUnits(v.amount, decimals),
-        start: v.start.toNumber(),
-        duration: v.duration.toNumber(),
-        claimed: ethers.utils.formatUnits(v.claimed, decimals),
+        amount: ethers.formatUnits(v.amount, decimals),
+        start: Number(v.start),
+        duration: Number(v.duration),
+        claimed: ethers.formatUnits(v.claimed, decimals),
       };
     } catch (err) {
       console.error("getVesting error:", err);
