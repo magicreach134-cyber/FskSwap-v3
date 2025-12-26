@@ -21,6 +21,9 @@ type SwapParams = {
   slippagePercent?: number;
 };
 
+// Fallback RPC for BNB Testnet
+const DEFAULT_BNB_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545";
+
 export const useSwap = (
   provider: ethers.BrowserProvider | null,
   signer: ethers.Signer | null
@@ -28,8 +31,8 @@ export const useSwap = (
   /* ================= Router Instances ================= */
 
   const routerRead = useMemo(() => {
-    if (!provider) return null;
-    return new Contract(routerAddress, ABIS.FSKRouter, provider);
+    const readProvider = provider ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC);
+    return new Contract(routerAddress, ABIS.FSKRouter, readProvider);
   }, [provider]);
 
   const routerWrite = useMemo(() => {
@@ -44,7 +47,7 @@ export const useSwap = (
       const token = new Contract(
         tokenAddress,
         MINIMAL_ERC20_ABI,
-        provider ?? signer
+        provider ?? signer ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC)
       );
       return Number(await token.decimals());
     } catch {
