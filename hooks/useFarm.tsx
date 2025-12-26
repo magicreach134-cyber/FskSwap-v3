@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import { ethers, Contract } from "ethers";
 import { stakingAddress, ABIS, MINIMAL_ERC20_ABI } from "../utils/constants";
 
 export interface FarmView {
@@ -9,71 +9,68 @@ export interface FarmView {
   lpToken: string;
   name: string;
   symbol: string;
-  staked: ethers.BigNumber;
-  pending: ethers.BigNumber;
+  staked: string;
+  pending: string;
 }
 
 const useFarm = (signer?: ethers.Signer | null) => {
-  const [staking, setStaking] = useState<ethers.Contract | null>(null);
+  const [staking, setStaking] = useState<Contract | null>(null);
   const [farms, setFarms] = useState<FarmView[]>([]);
   const [user, setUser] = useState<string>("");
 
-  /* ---------------------------------------------------------
-     INIT STAKING CONTRACT
-  --------------------------------------------------------- */
+  /* ---------- INIT STAKING CONTRACT ---------- */
   useEffect(() => {
     if (!signer) return;
 
     const init = async () => {
-      const address = await signer.getAddress();
-      setUser(address);
+      try {
+        const address = await signer.getAddress();
+        setUser(address);
 
-      const contract = new ethers.Contract(
-        stakingAddress,
-        ABIS.FSKSwapLPStaking,
-        signer
-      );
+        const contract = new Contract(
+          stakingAddress,
+          ABIS.FSKSwapLPStaking,
+          signer
+        );
 
-      setStaking(contract);
+        setStaking(contract);
+      } catch (err) {
+        console.error("Staking init error:", err);
+      }
     };
 
     init();
   }, [signer]);
 
-  /* ---------------------------------------------------------
-     LOAD FARMS (MasterChef Pools)
-  --------------------------------------------------------- */
+  /* ---------- LOAD FARMS ---------- */
   useEffect(() => {
     if (!staking || !user) return;
 
     const loadFarms = async () => {
       try {
-        const poolLength: number = await staking.poolLength();
+        const poolLength: bigint = await staking.poolLength();
         const loaded: FarmView[] = [];
 
-        for (let pid = 0; pid < poolLength; pid++) {
+        for (let pid = 0n; pid < poolLength; pid++) {
           const pool = await staking.poolInfo(pid);
           const pending = await staking.pendingReward(pid, user);
           const userInfo = await staking.userInfo(pid, user);
 
-          const lp = new ethers.Contract(
-            pool.lpToken,
-            MINIMAL_ERC20_ABI,
-            staking.signer
-          );
+          const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer);
 
-          const [name, symbol] = await Promise.all([
+          const [name, symbol, decimals] = await Promise.all([
             lp.name(),
-            lp.symbol()
+            lp.symbol(),
+            lp.decimals()
           ]);
 
           loaded.push({
-            pid,
+            pid: Number(pid),
             lpToken: pool.lpToken,
             name,
             symbol,
-            staked: userInfo.amount,
-            pending
+            staked: ethers.formatUnits(userInfo.amount, decimals),
+            pending: ethers.formatUnits(pending, decimals),
           });
         }
 
@@ -86,26 +83,18 @@ const useFarm = (signer?: ethers.Signer | null) => {
     loadFarms();
   }, [staking, user]);
 
-  /* ---------------------------------------------------------
-     ACTIONS
-  --------------------------------------------------------- */
-
+  /* ---------- ACTIONS ---------- */
   const stake = async (pid: number, amount: string) => {
-    if (!staking) throw new Error("Staking contract not ready");
+    if (!staking || !user) throw new Error("Staking contract not ready");
 
     const pool = await staking.poolInfo(pid);
-    const lp = new ethers.Contract(
-      pool.lpToken,
-      MINIMAL_ERC20_ABI,
-      staking.signer
-    );
-
+    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer);
     const decimals = await lp.decimals();
-    const parsed = ethers.utils.parseUnits(amount, decimals);
+    const parsed = ethers.parseUnits(amount, decimals);
 
-    const allowance = await lp.allowance(user, stakingAddress);
-    if (allowance.lt(parsed)) {
-      const approveTx = await lp.approve(stakingAddress, ethers.constants.MaxUint256);
+    const allowance: bigint = await lp.allowance(user, stakingAddress);
+    if (allowance < parsed) {
+      const approveTx = await lp.approve(stakingAddress, ethers.MaxUint256);
       await approveTx.wait();
     }
 
@@ -117,14 +106,9 @@ const useFarm = (signer?: ethers.Signer | null) => {
     if (!staking) throw new Error("Staking contract not ready");
 
     const pool = await staking.poolInfo(pid);
-    const lp = new ethers.Contract(
-      pool.lpToken,
-      MINIMAL_ERC20_ABI,
-      staking.signer
-    );
-
+    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer);
     const decimals = await lp.decimals();
-    const parsed = ethers.utils.parseUnits(amount, decimals);
+    const parsed = ethers.parseUnits(amount, decimals);
 
     const tx = await staking.withdraw(pid, parsed);
     return await tx.wait();
@@ -141,7 +125,7 @@ const useFarm = (signer?: ethers.Signer | null) => {
     farms,
     stake,
     unstake,
-    claim
+    claim,
   };
 };
 
