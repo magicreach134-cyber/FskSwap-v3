@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ethers, Contract } from "ethers";
 
 import FskFlashSwapABI from "@/utils/abis/FskFlashSwap.json";
-import { CONTRACTS } from "@/utils/constants";
+import { CONTRACTS, DEFAULT_BNB_RPC } from "@/utils/constants";
 
 export interface EstimateResult {
   maxProfit: string;
@@ -18,12 +18,8 @@ const useFlashSwap = (signer?: ethers.Signer | null) => {
 
   /* ---------- INIT CONTRACT ---------- */
   useEffect(() => {
-    if (!signer) {
-      setContract(null);
-      return;
-    }
-
-    const instance = new Contract(CONTRACTS.FskFlashSwap, FskFlashSwapABI, signer);
+    const provider = signer ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC);
+    const instance = new Contract(CONTRACTS.FskFlashSwap, FskFlashSwapABI, signer ?? provider);
     setContract(instance);
   }, [signer]);
 
