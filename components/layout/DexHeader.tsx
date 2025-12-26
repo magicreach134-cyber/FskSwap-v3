@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import Image from "next/image";
+
 import WalletConnectButton from "../WalletConnectButton";
 import ThemeSwitch from "../ThemeSwitch";
 
@@ -7,20 +10,23 @@ export default function DexHeader() {
   return (
     <header className="dex-header">
       <div className="dex-logo">
-        <img
-          src="/assets/logo.png"
-          alt="FSKSwap Logo"
-          width={40}
-          height={40}
-        />
-        <span>FSKSwap</span>
+        <Link href="/" className="dex-logo-link">
+          <Image
+            src="/assets/logo.png"
+            alt="FSKSwap Logo"
+            width={40}
+            height={40}
+            priority
+          />
+          <span>FSKSwap</span>
+        </Link>
       </div>
 
       <nav className="dex-nav">
-        <a href="/">Swap</a>
-        <a href="/launchpad">Launchpad</a>
-        <a href="/staking">Staking</a>
-        <a href="/flashswap">FlashSwap</a>
+        <Link href="/">Swap</Link>
+        <Link href="/launchpad">Launchpad</Link>
+        <Link href="/staking">Staking</Link>
+        <Link href="/flashswap">FlashSwap</Link>
       </nav>
 
       <div className="dex-header-right">
