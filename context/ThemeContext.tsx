@@ -1,8 +1,14 @@
 "use client";
 
-import React, { createContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+} from "react";
 
-type Theme = "light" | "dark";
+export type Theme = "light" | "dark";
 
 interface ThemeContextType {
   theme: Theme;
@@ -20,26 +26,38 @@ interface ThemeProviderProps {
 
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const [theme, setTheme] = useState<Theme>("light");
+  const [mounted, setMounted] = useState(false);
 
-  // Initialize theme from localStorage
+  /**
+   * Load theme safely on client only
+   */
   useEffect(() => {
-    const saved = localStorage.getItem("theme") as Theme | null;
-    if (saved) {
-      setTheme(saved);
-      document.documentElement.setAttribute("data-theme", saved);
-    } else {
-      // default to light
-      document.documentElement.setAttribute("data-theme", "light");
-    }
+    const savedTheme =
+      (localStorage.getItem("theme") as Theme | null) ?? "light";
+
+    setTheme(savedTheme);
+    document.documentElement.setAttribute("data-theme", savedTheme);
+    setMounted(true);
   }, []);
 
-  // Toggle theme
-  const toggleTheme = () => {
-    const nextTheme: Theme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    document.documentElement.setAttribute("data-theme", nextTheme);
-    localStorage.setItem("theme", nextTheme);
-  };
+  /**
+   * Toggle theme
+   */
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const next: Theme = prev === "light" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("theme", next);
+      return next;
+    });
+  }, []);
+
+  /**
+   * Prevent hydration mismatch
+   */
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
