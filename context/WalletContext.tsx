@@ -9,6 +9,7 @@ interface WalletContextType {
   signer: ethers.Signer | null;
   account: string;
   connectWallet: (type: "metamask" | "trustwallet" | "walletconnect") => Promise<void>;
+  disconnectWallet: () => void;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -16,6 +17,7 @@ const WalletContext = createContext<WalletContextType>({
   signer: null,
   account: "",
   connectWallet: async () => {},
+  disconnectWallet: () => {},
 });
 
 export const useWallet = () => useContext(WalletContext);
@@ -27,11 +29,12 @@ interface WalletProviderProps {
 export const WalletProvider = ({ children }: WalletProviderProps) => {
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
-  const [account, setAccount] = useState("");
+  const [account, setAccount] = useState<string>("");
 
+  // Connect wallet
   const connectWallet = async (type: "metamask" | "trustwallet" | "walletconnect") => {
     try {
-      let web3Provider;
+      let web3Provider: ethers.BrowserProvider | null = null;
 
       if ((type === "metamask" || type === "trustwallet") && (window as any).ethereum) {
         await (window as any).ethereum.request({ method: "eth_requestAccounts" });
@@ -56,12 +59,41 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       setAccount(addr);
     } catch (err: any) {
       console.error("Wallet connection failed:", err);
-      alert(err.message || "Wallet connection failed");
+      alert(err?.message || "Wallet connection failed");
     }
   };
 
+  // Disconnect wallet
+  const disconnectWallet = () => {
+    setProvider(null);
+    setSigner(null);
+    setAccount("");
+  };
+
+  // Handle account change (MetaMask/Trust Wallet)
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as any).ethereum) {
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length === 0) {
+          disconnectWallet();
+        } else {
+          setAccount(accounts[0]);
+        }
+      };
+
+      (window as any).ethereum.on("accountsChanged", handleAccountsChanged);
+      (window as any).ethereum.on("chainChanged", () => window.location.reload());
+
+      return () => {
+        (window as any).ethereum.removeListener("accountsChanged", handleAccountsChanged);
+      };
+    }
+  }, []);
+
   return (
-    <WalletContext.Provider value={{ provider, signer, account, connectWallet }}>
+    <WalletContext.Provider
+      value={{ provider, signer, account, connectWallet, disconnectWallet }}
+    >
       {children}
     </WalletContext.Provider>
   );
