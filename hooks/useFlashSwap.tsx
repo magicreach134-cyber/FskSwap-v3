@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import { ethers, Contract } from "ethers";
 
 import FskFlashSwapABI from "@/utils/abis/FskFlashSwap.json";
 import { CONTRACTS } from "@/utils/constants";
@@ -13,8 +13,8 @@ export interface EstimateResult {
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-const useFlashSwap = (signer?: ethers.JsonRpcSigner | null) => {
-  const [contract, setContract] = useState<ethers.Contract | null>(null);
+const useFlashSwap = (signer?: ethers.Signer | null) => {
+  const [contract, setContract] = useState<Contract | null>(null);
 
   /* ---------- INIT CONTRACT ---------- */
   useEffect(() => {
@@ -23,12 +23,7 @@ const useFlashSwap = (signer?: ethers.JsonRpcSigner | null) => {
       return;
     }
 
-    const instance = new ethers.Contract(
-      CONTRACTS.FskFlashSwap,
-      FskFlashSwapABI,
-      signer
-    );
-
+    const instance = new Contract(CONTRACTS.FskFlashSwap, FskFlashSwapABI, signer);
     setContract(instance);
   }, [signer]);
 
@@ -45,12 +40,8 @@ const useFlashSwap = (signer?: ethers.JsonRpcSigner | null) => {
     try {
       const parsedAmount = ethers.parseUnits(amount, 18);
 
-      const [profitBN, bestRouter] =
-        await contract.estimateBestRouter(
-          parsedAmount,
-          routers,
-          path
-        );
+      const [profitBN, bestRouter]: [bigint, string] =
+        await contract.estimateBestRouter(parsedAmount, routers, path);
 
       return {
         maxProfit: ethers.formatUnits(profitBN, 18),
@@ -70,9 +61,7 @@ const useFlashSwap = (signer?: ethers.JsonRpcSigner | null) => {
     routers: string[],
     path: string[]
   ) => {
-    if (!contract) {
-      throw new Error("FlashSwap contract not initialized");
-    }
+    if (!contract) throw new Error("FlashSwap contract not initialized");
 
     const parsedAmount = ethers.parseUnits(amount, 18);
 
@@ -92,7 +81,7 @@ const useFlashSwap = (signer?: ethers.JsonRpcSigner | null) => {
     if (!contract) return "0";
 
     try {
-      const price = await contract.getPrice(token);
+      const price: bigint = await contract.getPrice(token);
       return ethers.formatUnits(price, 18);
     } catch (err) {
       console.error("getPrice failed:", err);
