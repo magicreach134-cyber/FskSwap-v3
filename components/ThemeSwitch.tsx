@@ -1,19 +1,30 @@
 "use client";
 
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 
 const ThemeSwitch = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
+  const [mounted, setMounted] = useState(false);
+
+  /**
+   * Prevent hydration mismatch between server and client
+   */
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   return (
     <button
+      type="button"
       className={`theme-switch ${theme}`}
       onClick={toggleTheme}
-      title="Toggle Light/Dark Mode"
       aria-label="Toggle theme"
+      title="Toggle Light/Dark Mode"
     >
-      {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+      {theme === "light" ? "🌙 Dark" : "☀️ Light"}
     </button>
   );
 };
