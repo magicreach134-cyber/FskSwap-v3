@@ -1,52 +1,50 @@
 "use client";
 
 import { useWallet } from "@/hooks/useWallet";
-import useFarm from "@/hooks/useFarm";
-import { useState } from "react";
+import useFarm, { FarmView } from "@/hooks/useFarm";
+import { useEffect, useState } from "react";
 
 export default function FarmPage() {
   const { signer, account } = useWallet();
-  const { farms, stake, unstake, claim } = useFarm(signer ?? null);
+  const { farms, stake, unstake, claim } = useFarm(signer);
 
-  // Track loading per farm
-  const [loadingFarms, setLoadingFarms] = useState<Record<number, boolean>>({});
+  // separate loading states per farm and action
+  const [loadingMap, setLoadingMap] = useState<Record<number, { stake: boolean; unstake: boolean; claim: boolean }>>({});
 
-  const handleStake = async (pid: number) => {
-    const input = prompt("Enter amount to stake:");
-    if (!input || isNaN(Number(input)) || Number(input) <= 0) return;
+  useEffect(() => {
+    // initialize loading map for all farms
+    const map: Record<number, { stake: boolean; unstake: boolean; claim: boolean }> = {};
+    farms.forEach((farm) => {
+      if (!loadingMap[farm.pid]) {
+        map[farm.pid] = { stake: false, unstake: false, claim: false };
+      } else {
+        map[farm.pid] = loadingMap[farm.pid];
+      }
+    });
+    setLoadingMap(map);
+  }, [farms]);
 
-    setLoadingFarms((prev) => ({ ...prev, [pid]: true }));
-    try {
-      await stake(pid, input);
-    } catch (err) {
-      console.error("Stake failed:", err);
-    } finally {
-      setLoadingFarms((prev) => ({ ...prev, [pid]: false }));
+  const handleAction = async (
+    pid: number,
+    action: "stake" | "unstake" | "claim",
+    promptAmount?: boolean
+  ) => {
+    let amount: string | undefined;
+    if (promptAmount) {
+      amount = prompt(`Enter amount to ${action}:`);
+      if (!amount) return;
     }
-  };
 
-  const handleUnstake = async (pid: number) => {
-    const input = prompt("Enter amount to unstake:");
-    if (!input || isNaN(Number(input)) || Number(input) <= 0) return;
+    setLoadingMap((prev) => ({ ...prev, [pid]: { ...prev[pid], [action]: true } }));
 
-    setLoadingFarms((prev) => ({ ...prev, [pid]: true }));
     try {
-      await unstake(pid, input);
+      if (action === "stake") await stake(pid, amount!);
+      if (action === "unstake") await unstake(pid, amount!);
+      if (action === "claim") await claim(pid);
     } catch (err) {
-      console.error("Unstake failed:", err);
+      console.error(`${action} failed for pid ${pid}:`, err);
     } finally {
-      setLoadingFarms((prev) => ({ ...prev, [pid]: false }));
-    }
-  };
-
-  const handleClaim = async (pid: number) => {
-    setLoadingFarms((prev) => ({ ...prev, [pid]: true }));
-    try {
-      await claim(pid);
-    } catch (err) {
-      console.error("Claim failed:", err);
-    } finally {
-      setLoadingFarms((prev) => ({ ...prev, [pid]: false }));
+      setLoadingMap((prev) => ({ ...prev, [pid]: { ...prev[pid], [action]: false } }));
     }
   };
 
@@ -55,7 +53,6 @@ export default function FarmPage() {
       <h2 className="text-xl font-semibold mb-4">Farming</h2>
 
       {!account && <p>Please connect your wallet to see farms.</p>}
-
       {account && farms.length === 0 && <p>No active farms yet.</p>}
 
       {account && farms.length > 0 && (
@@ -77,24 +74,24 @@ export default function FarmPage() {
                 <td className="border px-2 py-1 space-x-2">
                   <button
                     className="bg-green-500 text-white px-2 py-1 rounded"
-                    disabled={!!loadingFarms[farm.pid]}
-                    onClick={() => handleStake(farm.pid)}
+                    disabled={loadingMap[farm.pid]?.stake}
+                    onClick={() => handleAction(farm.pid, "stake", true)}
                   >
-                    Stake
+                    {loadingMap[farm.pid]?.stake ? "Staking..." : "Stake"}
                   </button>
                   <button
                     className="bg-red-500 text-white px-2 py-1 rounded"
-                    disabled={!!loadingFarms[farm.pid]}
-                    onClick={() => handleUnstake(farm.pid)}
+                    disabled={loadingMap[farm.pid]?.unstake}
+                    onClick={() => handleAction(farm.pid, "unstake", true)}
                   >
-                    Unstake
+                    {loadingMap[farm.pid]?.unstake ? "Unstaking..." : "Unstake"}
                   </button>
                   <button
                     className="bg-blue-500 text-white px-2 py-1 rounded"
-                    disabled={!!loadingFarms[farm.pid]}
-                    onClick={() => handleClaim(farm.pid)}
+                    disabled={loadingMap[farm.pid]?.claim}
+                    onClick={() => handleAction(farm.pid, "claim")}
                   >
-                    Claim
+                    {loadingMap[farm.pid]?.claim ? "Claiming..." : "Claim"}
                   </button>
                 </td>
               </tr>
