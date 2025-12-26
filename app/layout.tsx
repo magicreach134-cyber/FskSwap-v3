@@ -1,3 +1,5 @@
+
+import type { Metadata } from "next";
 import "../styles/theme.css";
 import "../styles/swap-form.css";
 import "../styles/launchpad.css";
@@ -8,7 +10,7 @@ import DexHeader from "../components/layout/DexHeader";
 import { ThemeProvider } from "../context/ThemeContext";
 import { WalletProvider } from "../context/WalletContext";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "FSKSwap",
   description: "FSKSwap Dex - Swap, Launchpad, FlashSwap, and Staking",
 };
@@ -19,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider>
           <WalletProvider>
