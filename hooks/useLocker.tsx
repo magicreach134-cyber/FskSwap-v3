@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { ethers, Contract } from "ethers";
 
-import { FSKMegaLocker, FSKMegaLockerABI } from "../utils/constants";
+import { FSKMegaLocker, FSKMegaLockerABI, DEFAULT_BNB_RPC } from "../utils/constants";
 import ERC20ABI from "../utils/abis/ERC20.json";
 
 export interface Lock {
@@ -28,26 +28,22 @@ const useLocker = (signer?: ethers.Signer | null) => {
 
   /* ---------- INIT CONTRACT ---------- */
   useEffect(() => {
-    if (signer) {
-      try {
-        const contract = new Contract(FSKMegaLocker, FSKMegaLockerABI, signer);
-        setLockerContract(contract);
-      } catch (err) {
-        console.error("Failed to initialize locker contract:", err);
-      }
-    } else {
+    const provider = signer ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC);
+    try {
+      const contract = new Contract(FSKMegaLocker, FSKMegaLockerABI, signer ?? provider);
+      setLockerContract(contract);
+    } catch (err) {
+      console.error("Failed to initialize locker contract:", err);
       setLockerContract(null);
     }
   }, [signer]);
 
   /* ---------- TOKEN DECIMALS ---------- */
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
-    if (!signer) return 18;
     try {
-      const tokenContract = new Contract(tokenAddress, ERC20ABI, signer);
+      const tokenContract = new Contract(tokenAddress, ERC20ABI, signer ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC));
       return Number(await tokenContract.decimals());
-    } catch (err) {
-      console.error("getTokenDecimals error:", err);
+    } catch {
       return 18;
     }
   };
@@ -57,9 +53,8 @@ const useLocker = (signer?: ethers.Signer | null) => {
     if (!lockerContract) return [];
     try {
       const locks: bigint[] = await lockerContract.getOwnerLocks(owner);
-      return locks.map((bn) => Number(bn));
-    } catch (err) {
-      console.error("getOwnerLocks error:", err);
+      return locks.map(Number);
+    } catch {
       return [];
     }
   };
@@ -76,31 +71,17 @@ const useLocker = (signer?: ethers.Signer | null) => {
         unlockTime: Number(lock.unlockTime),
         withdrawn: lock.withdrawn,
       };
-    } catch (err) {
-      console.error("getLock error:", err);
+    } catch {
       return null;
     }
   };
 
-  const withdrawFromLock = async (
-    lockId: number,
-    to: string,
-    amount: string
-  ) => {
+  const withdrawFromLock = async (lockId: number, to: string, amount: string) => {
     if (!lockerContract) throw new Error("Locker contract not initialized");
-    try {
-      const lock = await lockerContract.getLock(lockId);
-      const decimals = await getTokenDecimals(lock.token);
-      const tx = await lockerContract.withdrawFromLock(
-        lockId,
-        to,
-        ethers.parseUnits(amount, decimals)
-      );
-      return await tx.wait();
-    } catch (err) {
-      console.error("withdrawFromLock error:", err);
-      throw err;
-    }
+    const lock = await lockerContract.getLock(lockId);
+    const decimals = await getTokenDecimals(lock.token);
+    const tx = await lockerContract.withdrawFromLock(lockId, to, ethers.parseUnits(amount, decimals));
+    return await tx.wait();
   };
 
   /* ---------- VESTINGS ---------- */
@@ -108,9 +89,8 @@ const useLocker = (signer?: ethers.Signer | null) => {
     if (!lockerContract) return [];
     try {
       const vestIds: bigint[] = await lockerContract.getBeneficiaryVestings(account);
-      return vestIds.map((id) => Number(id));
-    } catch (err) {
-      console.error("getBeneficiaryVestings error:", err);
+      return vestIds.map(Number);
+    } catch {
       return [];
     }
   };
@@ -128,21 +108,15 @@ const useLocker = (signer?: ethers.Signer | null) => {
         duration: Number(v.duration),
         claimed: ethers.formatUnits(v.claimed, decimals),
       };
-    } catch (err) {
-      console.error("getVesting error:", err);
+    } catch {
       return null;
     }
   };
 
   const claimVesting = async (vestId: number) => {
     if (!lockerContract) throw new Error("Locker contract not initialized");
-    try {
-      const tx = await lockerContract.withdrawFromVesting(vestId);
-      return await tx.wait();
-    } catch (err) {
-      console.error("claimVesting error:", err);
-      throw err;
-    }
+    const tx = await lockerContract.withdrawFromVesting(vestId);
+    return await tx.wait();
   };
 
   return {
