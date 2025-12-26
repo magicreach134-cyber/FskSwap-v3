@@ -21,7 +21,6 @@ export default function SwapPage() {
 
   const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
   const [toToken, setToToken] = useState(TOKEN_LIST[1]);
-
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
   const [slippage, setSlippage] = useState<number>(
@@ -31,7 +30,7 @@ export default function SwapPage() {
 
   /* ---------- Estimate output ---------- */
   const estimateAmountOut = useCallback(async () => {
-    if (!amountIn || !getAmountOut) {
+    if (!amountIn || !getAmountOut || Number(amountIn) <= 0) {
       setAmountOut("");
       return;
     }
@@ -148,7 +147,7 @@ export default function SwapPage() {
           <button
             className="swap-submit"
             onClick={handleSwap}
-            disabled={loading || !amountIn}
+            disabled={loading || !amountIn || Number(amountIn) <= 0}
           >
             {loading ? "Swapping..." : "Swap"}
           </button>
