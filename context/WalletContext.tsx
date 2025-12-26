@@ -35,12 +35,14 @@ interface WalletProviderProps {
   children: ReactNode;
 }
 
+// Direct BNB Testnet RPC
+const DEFAULT_BNB_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545";
+
 export const WalletProvider = ({ children }: WalletProviderProps) => {
   const [provider, setProvider] = useState<BrowserProvider | null>(null);
   const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
   const [account, setAccount] = useState<string>("");
 
-  // Keep WalletConnect instance single
   const wcRef = useRef<WalletConnectProvider | null>(null);
 
   const resetState = () => {
@@ -76,7 +78,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
 
         const wcProvider = new WalletConnectProvider({
           rpc: {
-            97: "https://data-seed-prebsc-1-s1.binance.org:8545",
+            97: DEFAULT_BNB_RPC,
           },
           chainId: 97,
         });
