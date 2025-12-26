@@ -1,67 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import { useWallet } from "@/context/WalletContext";
 
 import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import useFlashSwap from "@/hooks/useFlashSwap";
 
-import {
-  TOKENS,
-  CONTRACTS,
-  TOKEN_COLORS,
-} from "@/utils/constants";
+import { TOKENS, CONTRACTS, TOKEN_COLORS } from "@/utils/constants";
 
 export default function FlashSwapPage() {
-  const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
+  const { signer } = useWallet();
+  const { estimateBestRouter, executeFlashSwap } = useFlashSwap(signer);
 
   const [amount, setAmount] = useState<string>("");
   const [estimatedProfit, setEstimatedProfit] = useState<string>("0");
   const [bestRouter, setBestRouter] = useState<string>("");
 
-  const tokenBorrow = TOKENS.FSK;     // address
-  const tokenTarget = TOKENS.WBNB;    // address
+  const tokenBorrow = TOKENS.FSK;
+  const tokenTarget = TOKENS.WBNB;
+  const routers = [CONTRACTS.FSKRouterV3];
+  const path = [tokenBorrow, tokenTarget];
 
-  const routers = [
-    CONTRACTS.FSKRouterV3,
-  ];
-
-  const path = [
-    tokenBorrow,
-    tokenTarget,
-  ];
-
-  const { estimateBestRouter, executeFlashSwap } = useFlashSwap(signer);
-
-  /* ---------- WALLET ---------- */
-  useEffect(() => {
-    if (!window.ethereum) return;
-
-    const init = async () => {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      setSigner(signer);
-    };
-
-    init();
-  }, []);
-
-  /* ---------- PROFIT ESTIMATION ---------- */
+  // ---------- PROFIT ESTIMATION ----------
   useEffect(() => {
     if (!amount || Number(amount) <= 0 || !estimateBestRouter) {
       setEstimatedProfit("0");
+      setBestRouter("");
       return;
     }
 
     const estimate = async () => {
       try {
-        const result = await estimateBestRouter(
-          amount,
-          routers,
-          path
-        );
-
+        const result = await estimateBestRouter(amount, routers, path);
         setEstimatedProfit(result.maxProfit);
         setBestRouter(result.bestRouter);
       } catch {
@@ -71,9 +42,9 @@ export default function FlashSwapPage() {
     };
 
     estimate();
-  }, [amount]);
+  }, [amount, estimateBestRouter]);
 
-  /* ---------- EXECUTION ---------- */
+  // ---------- EXECUTION ----------
   const handleFlashSwap = async () => {
     if (!amount || Number(amount) <= 0) {
       alert("Invalid amount");
@@ -86,14 +57,7 @@ export default function FlashSwapPage() {
     }
 
     try {
-      await executeFlashSwap(
-        tokenBorrow,
-        amount,
-        tokenTarget,
-        routers,
-        path
-      );
-
+      await executeFlashSwap(tokenBorrow, amount, tokenTarget, routers, path);
       alert("FlashSwap executed successfully");
       setAmount("");
       setEstimatedProfit("0");
@@ -130,11 +94,7 @@ export default function FlashSwapPage() {
 
         <div className="flashswap-card">
           <label>Borrow Token</label>
-          <input
-            value="FSK"
-            disabled
-            style={{ color: TOKEN_COLORS.FSK }}
-          />
+          <input value="FSK" disabled style={{ color: TOKEN_COLORS.FSK }} />
 
           <label>Amount</label>
           <input
@@ -147,17 +107,14 @@ export default function FlashSwapPage() {
             Estimated Profit:&nbsp;
             <strong
               style={{
-                color:
-                  Number(estimatedProfit) > 0 ? "#00ff99" : "#ff4444",
+                color: Number(estimatedProfit) > 0 ? "#00ff99" : "#ff4444",
               }}
             >
               {estimatedProfit}
             </strong>
           </p>
 
-          <button onClick={handleFlashSwap}>
-            Execute FlashSwap
-          </button>
+          <button onClick={handleFlashSwap}>Execute FlashSwap</button>
         </div>
       </main>
     </div>
