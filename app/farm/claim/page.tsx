@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import { ethers, Signer } from "ethers";
 
 import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
@@ -12,9 +12,13 @@ import "@/styles/staking.css";
 
 const FarmClaim = () => {
   const { signer, account } = useWallet();
-  const { farms, claim } = useFarm(signer);
+  const { farms, claim } = useFarm(signer as Signer | null);
 
   const handleClaim = async (pid: number) => {
+    if (!signer) {
+      alert("Connect wallet first");
+      return;
+    }
     try {
       await claim(pid);
       alert("Claimed rewards successfully");
@@ -45,7 +49,9 @@ const FarmClaim = () => {
         {signer && farms.length === 0 && <p>No farms available.</p>}
 
         {farms.map((farm: FarmView) => {
-          const claimable = parseFloat(ethers.formatUnits(farm.pending, 18));
+          const claimable = farm.pending
+            ? parseFloat(ethers.formatUnits(farm.pending, 18))
+            : 0;
 
           return (
             <div key={farm.pid} className="farm-card">
@@ -53,7 +59,7 @@ const FarmClaim = () => {
                 <strong>Pair:</strong> {farm.name} ({farm.symbol})
               </p>
               <p>
-                <strong>Claimable:</strong> {claimable}
+                <strong>Claimable:</strong> {claimable.toFixed(6)}
               </p>
 
               {claimable > 0 && (
