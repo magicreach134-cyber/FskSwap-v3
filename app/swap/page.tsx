@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ethers } from "ethers";
+import { useSwap } from "../../hooks/useSwap";
+import { useWallet } from "../../context/WalletContext"; // <- NEW: use shared wallet context
 
 import WalletConnectButton from "../../components/WalletConnectButton";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import TokenSelect from "../../components/TokenSelect";
-import { useSwap } from "../../hooks/useSwap";
 
 import {
   TOKEN_LIST,
@@ -19,43 +19,17 @@ import "../../styles/swap.css";
 type TokenSymbol = keyof typeof TOKEN_ADDRESS_MAP;
 
 export default function SwapPage() {
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
-  const [account, setAccount] = useState<string>("");
-
+  const { provider, signer, account } = useWallet(); // <- shared provider & signer
   const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
   const [toToken, setToToken] = useState(TOKEN_LIST[1]);
-
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
-
   const [slippage, setSlippage] = useState<number>(
     APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT
   );
-
   const [loading, setLoading] = useState(false);
 
-  const { getAmountOut, swapExactTokensForTokens } = useSwap(
-    provider,
-    signer
-  );
-
-  // ---------------- provider init ----------------
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!(window as any).ethereum) return;
-
-    const browserProvider = new ethers.BrowserProvider(
-      (window as any).ethereum
-    );
-
-    setProvider(browserProvider);
-
-    browserProvider.getSigner().then((s) => {
-      setSigner(s);
-      s.getAddress().then(setAccount).catch(() => setAccount(""));
-    });
-  }, []);
+  const { getAmountOut, swapExactTokensForTokens } = useSwap(provider, signer);
 
   // ---------------- estimate output ----------------
   const estimateAmountOut = useCallback(async () => {
@@ -70,8 +44,7 @@ export default function SwapPage() {
         toToken.symbol as TokenSymbol,
         amountIn
       );
-
-      setAmountOut(out ?? "");
+      setAmountOut(out?.amountOut ?? ""); // <- ensure string from hook
     } catch (err) {
       console.error("Quote error:", err);
       setAmountOut("");
@@ -91,11 +64,10 @@ export default function SwapPage() {
 
   // ---------------- execute swap ----------------
   const handleSwap = async () => {
-    if (!signer || !amountIn || !amountOut) return;
+    if (!signer || !amountIn || !amountOut || !account) return;
 
     try {
       setLoading(true);
-
       await swapExactTokensForTokens({
         amountIn,
         fromToken: fromToken.symbol as TokenSymbol,
@@ -117,7 +89,7 @@ export default function SwapPage() {
 
   return (
     <div className="swap-page">
-      {/* ================= Header ================= */}
+      {/* Header */}
       <header className="swap-header">
         <div className="swap-brand">
           <img src="/logo.png" alt="FSKSwap" />
@@ -132,12 +104,12 @@ export default function SwapPage() {
         </nav>
 
         <div className="swap-header-actions">
-          <WalletConnectButton provider={provider} setSigner={setSigner} />
+          <WalletConnectButton /> {/* <- now uses context internally */}
           <ThemeSwitch />
         </div>
       </header>
 
-      {/* ================= Swap Card ================= */}
+      {/* Swap Card */}
       <main className="swap-container">
         <h2>Token Swap</h2>
 
@@ -145,10 +117,7 @@ export default function SwapPage() {
           <div className="swap-token-row">
             <div className="swap-token-box">
               <label>From</label>
-              <TokenSelect
-                selectedToken={fromToken}
-                onSelect={setFromToken}
-              />
+              <TokenSelect selectedToken={fromToken} onSelect={setFromToken} />
             </div>
 
             <button
@@ -161,10 +130,7 @@ export default function SwapPage() {
 
             <div className="swap-token-box">
               <label>To</label>
-              <TokenSelect
-                selectedToken={toToken}
-                onSelect={setToToken}
-              />
+              <TokenSelect selectedToken={toToken} onSelect={setToToken} />
             </div>
           </div>
 
