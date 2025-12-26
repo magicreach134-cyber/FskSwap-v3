@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useWallet } from "../../context/WalletContext";
-import { useSwap } from "../../hooks/useSwap";
+import { useWallet } from "@/context/WalletContext";
+import { useSwap } from "@/hooks/useSwap";
 
-import WalletConnectButton from "../../components/WalletConnectButton";
-import ThemeSwitch from "../../components/ThemeSwitch";
-import TokenSelect from "../../components/TokenSelect";
+import TokenSelect from "@/components/TokenSelect";
 
-import { TOKEN_LIST, TOKEN_ADDRESS_MAP, APP_CONSTANTS } from "../../utils/constants";
-import "../../styles/swap.css";
+import {
+  TOKEN_LIST,
+  TOKEN_ADDRESS_MAP,
+  APP_CONSTANTS,
+} from "@/utils/constants";
+
+import "@/styles/swap.css";
 
 type TokenSymbol = keyof typeof TOKEN_ADDRESS_MAP;
 
@@ -22,9 +25,14 @@ export default function SwapPage() {
 
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
-  const [slippage, setSlippage] = useState(APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT);
+  const [slippage, setSlippage] = useState<number>(
+    APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT
+  );
   const [loading, setLoading] = useState(false);
 
+  /**
+   * Quote estimation
+   */
   const estimateAmountOut = useCallback(async () => {
     if (!amountIn || !getAmountOut) {
       setAmountOut("");
@@ -32,30 +40,45 @@ export default function SwapPage() {
     }
 
     try {
-      const out = await getAmountOut(
+      const quoted = await getAmountOut(
         fromToken.symbol as TokenSymbol,
         toToken.symbol as TokenSymbol,
         amountIn
       );
-      setAmountOut(out ?? "");
+
+      setAmountOut(quoted ?? "");
     } catch (err) {
       console.error("Quote error:", err);
       setAmountOut("");
     }
-  }, [amountIn, fromToken, toToken, getAmountOut]);
+  }, [amountIn, fromToken.symbol, toToken.symbol, getAmountOut]);
 
   useEffect(() => {
     estimateAmountOut();
   }, [estimateAmountOut]);
 
+  /**
+   * Swap tokens direction
+   */
   const handleSwitchTokens = () => {
     setFromToken(toToken);
     setToToken(fromToken);
     setAmountOut("");
   };
 
+  /**
+   * Execute swap
+   */
   const handleSwap = async () => {
-    if (!signer || !amountIn || !amountOut) return;
+    if (!signer || !account) {
+      alert("Connect wallet first");
+      return;
+    }
+
+    if (!amountIn || Number(amountIn) <= 0) {
+      alert("Enter a valid amount");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -81,36 +104,21 @@ export default function SwapPage() {
 
   return (
     <div className="swap-page">
-      <header className="swap-header">
-        <div className="swap-brand">
-          <img src="/logo.png" alt="FSKSwap" />
-          <span>FSKSwap</span>
-        </div>
-
-        <nav className="swap-nav">
-          <a href="/swap">Swap</a>
-          <a href="/launchpad">Launchpad</a>
-          <a href="/farm">Farm</a>
-          <a href="/flashswap">FlashSwap</a>
-        </nav>
-
-        <div className="swap-header-actions">
-          <WalletConnectButton />
-          <ThemeSwitch />
-        </div>
-      </header>
-
       <main className="swap-container">
-        <h2>Token Swap</h2>
+        <h2>Swap</h2>
 
         <div className={`swap-card ${loading ? "swap-loading" : ""}`}>
           <div className="swap-token-row">
             <div className="swap-token-box">
               <label>From</label>
-              <TokenSelect selectedToken={fromToken} onSelect={setFromToken} />
+              <TokenSelect
+                selectedToken={fromToken}
+                onSelect={setFromToken}
+              />
             </div>
 
             <button
+              type="button"
               className="swap-switch-button"
               onClick={handleSwitchTokens}
               title="Switch tokens"
@@ -120,13 +128,18 @@ export default function SwapPage() {
 
             <div className="swap-token-box">
               <label>To</label>
-              <TokenSelect selectedToken={toToken} onSelect={setToToken} />
+              <TokenSelect
+                selectedToken={toToken}
+                onSelect={setToToken}
+              />
             </div>
           </div>
 
           <label>Amount In</label>
           <input
             type="number"
+            min="0"
+            step="any"
             placeholder="0.0"
             value={amountIn}
             onChange={(e) => setAmountIn(e.target.value)}
@@ -135,6 +148,8 @@ export default function SwapPage() {
           <label>Slippage (%)</label>
           <input
             type="number"
+            min="0"
+            step="0.1"
             value={slippage}
             onChange={(e) => setSlippage(Number(e.target.value))}
           />
