@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useWallet } from "@/context/WalletContext";
-
 import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import useFlashSwap from "@/hooks/useFlashSwap";
@@ -16,35 +15,37 @@ export default function FlashSwapPage() {
   const [amount, setAmount] = useState<string>("");
   const [estimatedProfit, setEstimatedProfit] = useState<string>("0");
   const [bestRouter, setBestRouter] = useState<string>("");
+  const [loading, setLoading] = useState(false);
 
   const tokenBorrow = TOKENS.FSK;
   const tokenTarget = TOKENS.WBNB;
   const routers = [CONTRACTS.FSKRouterV3];
   const path = [tokenBorrow, tokenTarget];
 
-  // ---------- PROFIT ESTIMATION ----------
-  useEffect(() => {
+  /* ---------- Estimate Profit ---------- */
+  const updateEstimation = useCallback(async () => {
     if (!amount || Number(amount) <= 0 || !estimateBestRouter) {
       setEstimatedProfit("0");
       setBestRouter("");
       return;
     }
 
-    const estimate = async () => {
-      try {
-        const result = await estimateBestRouter(amount, routers, path);
-        setEstimatedProfit(result.maxProfit);
-        setBestRouter(result.bestRouter);
-      } catch {
-        setEstimatedProfit("0");
-        setBestRouter("");
-      }
-    };
-
-    estimate();
+    try {
+      const result = await estimateBestRouter(amount, routers, path);
+      setEstimatedProfit(result.maxProfit);
+      setBestRouter(result.bestRouter);
+    } catch (err) {
+      console.error("Profit estimation failed:", err);
+      setEstimatedProfit("0");
+      setBestRouter("");
+    }
   }, [amount, estimateBestRouter]);
 
-  // ---------- EXECUTION ----------
+  useEffect(() => {
+    updateEstimation();
+  }, [amount, updateEstimation]);
+
+  /* ---------- Execute FlashSwap ---------- */
   const handleFlashSwap = async () => {
     if (!amount || Number(amount) <= 0) {
       alert("Invalid amount");
@@ -57,18 +58,22 @@ export default function FlashSwapPage() {
     }
 
     try {
+      setLoading(true);
       await executeFlashSwap(tokenBorrow, amount, tokenTarget, routers, path);
       alert("FlashSwap executed successfully");
       setAmount("");
       setEstimatedProfit("0");
     } catch (err: any) {
+      console.error("FlashSwap failed:", err);
       alert(err?.message || "FlashSwap failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="flashswap-page">
-      {/* HEADER */}
+      {/* ---------- HEADER ---------- */}
       <header className="flashswap-header">
         <div className="logo">
           <img src="/logo.png" alt="FSKSwap" />
@@ -88,11 +93,11 @@ export default function FlashSwapPage() {
         </div>
       </header>
 
-      {/* MAIN */}
+      {/* ---------- MAIN ---------- */}
       <main className="flashswap-container">
         <h2>FlashSwap</h2>
 
-        <div className="flashswap-card">
+        <div className={`flashswap-card ${loading ? "loading" : ""}`}>
           <label>Borrow Token</label>
           <input value="FSK" disabled style={{ color: TOKEN_COLORS.FSK }} />
 
@@ -100,7 +105,10 @@ export default function FlashSwapPage() {
           <input
             type="number"
             value={amount}
+            min="0"
+            step="any"
             onChange={(e) => setAmount(e.target.value)}
+            disabled={loading}
           />
 
           <p>
@@ -114,8 +122,20 @@ export default function FlashSwapPage() {
             </strong>
           </p>
 
-          <button onClick={handleFlashSwap}>Execute FlashSwap</button>
+          <button
+            onClick={handleFlashSwap}
+            disabled={loading || Number(amount) <= 0}
+          >
+            {loading ? "Executing..." : "Execute FlashSwap"}
+          </button>
         </div>
+
+        {bestRouter && (
+          <p>
+            Best Router:&nbsp;
+            <strong>{bestRouter}</strong>
+          </p>
+        )}
       </main>
     </div>
   );
