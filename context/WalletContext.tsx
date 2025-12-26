@@ -35,7 +35,6 @@ interface WalletProviderProps {
   children: ReactNode;
 }
 
-// Direct BNB Testnet RPC
 const DEFAULT_BNB_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545";
 
 export const WalletProvider = ({ children }: WalletProviderProps) => {
@@ -57,19 +56,17 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
     try {
       let web3Provider: BrowserProvider;
 
-      // --- Injected wallets (MetaMask / TrustWallet) ---
+      // Injected wallets
       if (
         (type === "metamask" || type === "trustwallet") &&
         typeof window !== "undefined" &&
         (window as any).ethereum
       ) {
         const injected = (window as any).ethereum;
-
         await injected.request({ method: "eth_requestAccounts" });
-
         web3Provider = new BrowserProvider(injected);
       }
-      // --- WalletConnect ---
+      // WalletConnect
       else if (type === "walletconnect") {
         if (wcRef.current) {
           await wcRef.current.disconnect();
@@ -77,9 +74,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
         }
 
         const wcProvider = new WalletConnectProvider({
-          rpc: {
-            97: DEFAULT_BNB_RPC,
-          },
+          rpc: { 97: DEFAULT_BNB_RPC },
           chainId: 97,
         });
 
@@ -115,19 +110,15 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
     }
   };
 
-  // Handle injected wallet events (once)
+  // Listen for injected wallet events
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     const eth = (window as any).ethereum;
     if (!eth || !eth.on) return;
 
     const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
-        resetState();
-      } else {
-        setAccount(accounts[0]);
-      }
+      if (accounts.length === 0) resetState();
+      else setAccount(accounts[0]);
     };
 
     const handleChainChanged = () => {
