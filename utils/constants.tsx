@@ -28,12 +28,22 @@ export const RPC_URLS: Record<ChainId, string[]> = {
 export const ACTIVE_CHAIN_ID = ChainId.BSC_TESTNET;
 export const RPC_URL = RPC_URLS[ACTIVE_CHAIN_ID][0];
 
-/* ================= ENV VALIDATION (Contracts Only) ================= */
+/* ================= ENV VALIDATION ================= */
 
 function requireEnv(key: string): string {
+  if (typeof window === "undefined") {
+    // server-side (build / SSR)
+    const value = process.env[key];
+    if (!value) {
+      throw new Error(`[ENV ERROR] Missing environment variable: ${key}`);
+    }
+    return value;
+  }
+
+  // client-side
   const value = process.env[key];
   if (!value) {
-    throw new Error(`[ENV ERROR] Missing environment variable: ${key}`);
+    throw new Error(`[ENV ERROR] Missing public env variable: ${key}`);
   }
   return value;
 }
@@ -86,7 +96,7 @@ export const TOKEN_ADDRESS_MAP: Record<string, AddressLike> = {
   SOL: TOKENS.SOL,
 };
 
-/* ================= TOKEN LIST (UI + ROUTER) ================= */
+/* ================= TOKEN LIST ================= */
 
 export type TokenMeta = {
   symbol: string;
@@ -118,43 +128,43 @@ export const TOKEN_COLORS: Record<string, string> = {
 
 /* ================= ABIS ================= */
 
-import BTC from "./abis/BTC.json";
-import ETH from "./abis/ETH.json";
-import SOL from "./abis/SOL.json";
-import USDC from "./abis/USDC.json";
-import FUSDT from "./abis/FUSDT.json";
-import WBNB from "./abis/WBNB.json";
-import FSK from "./abis/Fressking.json";
+import BTC_ABI from "./abis/BTC.json";
+import ETH_ABI from "./abis/ETH.json";
+import SOL_ABI from "./abis/SOL.json";
+import USDC_ABI from "./abis/USDC.json";
+import FUSDT_ABI from "./abis/FUSDT.json";
+import WBNB_ABI from "./abis/WBNB.json";
+import FSK_ABI from "./abis/Fressking.json";
 
-import FSKFactory from "./abis/FskFactory.json";
-import FSKRouter from "./abis/FskRouter.json";
-import FSKFeeCollector from "./abis/FSKFeeCollector.json";
-import FSKHelpFundAllPool from "./abis/FSKHelpFundAllPool.json";
-import FSKLaunchpadFactory from "./abis/FSKLaunchpadFactory.json";
-import FSKPresale from "./abis/FSKPresale.json";
-import FSKSwapLPStaking from "./abis/FSKSwapLPStaking.json";
-import FskFlashSwap from "./abis/FskFlashSwap.json";
-import FSKMegaLocker from "./abis/FSKMegaLocker.json";
-import IFSKRouter from "./abis/IFSKRouter.json";
+import FSKFactory_ABI from "./abis/FskFactory.json";
+import FSKRouter_ABI from "./abis/FskRouter.json";
+import FSKFeeCollector_ABI from "./abis/FSKFeeCollector.json";
+import FSKHelpFundAllPool_ABI from "./abis/FSKHelpFundAllPool.json";
+import FSKLaunchpadFactory_ABI from "./abis/FSKLaunchpadFactory.json";
+import FSKPresale_ABI from "./abis/FSKPresale.json";
+import FSKSwapLPStaking_ABI from "./abis/FSKSwapLPStaking.json";
+import FskFlashSwap_ABI from "./abis/FskFlashSwap.json";
+import FSKMegaLocker_ABI from "./abis/FSKMegaLocker.json";
+import IFSKRouter_ABI from "./abis/IFSKRouter.json";
 
 export const ABIS = {
-  BTC,
-  ETH,
-  SOL,
-  USDC,
-  FUSDT,
-  WBNB,
-  FSK,
-  FSKFactory,
-  FSKRouter,
-  FSKFeeCollector,
-  FSKHelpFundAllPool,
-  FSKLaunchpadFactory,
-  FSKPresale,
-  FSKSwapLPStaking,
-  FskFlashSwap,
-  FSKMegaLocker,
-  IFSKRouter,
+  BTC: BTC_ABI,
+  ETH: ETH_ABI,
+  SOL: SOL_ABI,
+  USDC: USDC_ABI,
+  FUSDT: FUSDT_ABI,
+  WBNB: WBNB_ABI,
+  FSK: FSK_ABI,
+  FSKFactory: FSKFactory_ABI,
+  FSKRouter: FSKRouter_ABI,
+  FSKFeeCollector: FSKFeeCollector_ABI,
+  FSKHelpFundAllPool: FSKHelpFundAllPool_ABI,
+  FSKLaunchpadFactory: FSKLaunchpadFactory_ABI,
+  FSKPresale: FSKPresale_ABI,
+  FSKSwapLPStaking: FSKSwapLPStaking_ABI,
+  FskFlashSwap: FskFlashSwap_ABI,
+  FSKMegaLocker: FSKMegaLocker_ABI,
+  IFSKRouter: IFSKRouter_ABI,
 } as const;
 
 /* ================= MINIMAL ERC20 ================= */
@@ -172,15 +182,14 @@ export const MINIMAL_ERC20_ABI = [
 /* ================= APP CONSTANTS ================= */
 
 export const APP_CONSTANTS = {
-  DEFAULT_DEADLINE_SECONDS: 1200, // 20 minutes
-  DEFAULT_SLIPPAGE_PERCENT: 0.5,  // 0.5%
+  DEFAULT_DEADLINE_SECONDS: 1200,
+  DEFAULT_SLIPPAGE_PERCENT: 0.5,
 } as const;
 
 /* ================= SPECIFIC EXPORTS ================= */
 
-// Active BNB RPC for Testnet
 export const DEFAULT_BNB_RPC = RPC_URL;
 
-// ABI & Locker
-export { FSKMegaLocker as FSKMegaLockerABI };
-export { FSKMegaLocker };
+// Explicit named exports (no ambiguity)
+export const FSKMegaLockerAddress = CONTRACTS.FSKMegaLocker;
+export const FSKMegaLockerABI = FSKMegaLocker_ABI;
