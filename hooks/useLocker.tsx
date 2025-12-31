@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Contract, BrowserProvider, JsonRpcSigner, parseUnits, formatUnits } from "ethers";
+import { useEffect, useState } from "react";
+import {
+  Contract,
+  BrowserProvider,
+  JsonRpcProvider,
+  parseUnits,
+  formatUnits,
+} from "ethers";
 
 import {
   FSKMegaLocker,
   FSKMegaLockerABI,
-  DEFAULT_BNB_RPC
+  DEFAULT_BNB_RPC,
 } from "../utils/constants";
 
 import ERC20ABI from "../utils/abis/ERC20.json";
@@ -30,20 +36,19 @@ export interface Vesting {
 
 const useLocker = (provider: BrowserProvider | null) => {
   const [lockerContract, setLockerContract] = useState<Contract | null>(null);
-  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
 
-  /* ---------- INIT CONTRACT ---------- */
+  /* ---------- INIT CONTRACT (READ MODE) ---------- */
   useEffect(() => {
     const init = async () => {
       try {
-        const readProvider = provider ?? new BrowserProvider(DEFAULT_BNB_RPC);
-        const signerInstance = provider?.getSigner() ?? null;
-        setSigner(signerInstance);
+        const readProvider = provider
+          ? provider
+          : new JsonRpcProvider(DEFAULT_BNB_RPC);
 
         const contract = new Contract(
           FSKMegaLocker,
           FSKMegaLockerABI,
-          signerInstance ?? readProvider
+          readProvider
         );
 
         setLockerContract(contract);
@@ -59,8 +64,11 @@ const useLocker = (provider: BrowserProvider | null) => {
   /* ---------- TOKEN DECIMALS ---------- */
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
     try {
-      const readProvider = provider ?? new BrowserProvider(DEFAULT_BNB_RPC);
-      const token = new Contract(tokenAddress, ERC20ABI, signer ?? readProvider);
+      const readProvider = provider
+        ? provider
+        : new JsonRpcProvider(DEFAULT_BNB_RPC);
+
+      const token = new Contract(tokenAddress, ERC20ABI, readProvider);
       return Number(await token.decimals());
     } catch {
       return 18;
@@ -89,33 +97,41 @@ const useLocker = (provider: BrowserProvider | null) => {
         token: lock.token,
         amount: formatUnits(lock.amount, decimals),
         unlockTime: Number(lock.unlockTime),
-        withdrawn: lock.withdrawn
+        withdrawn: lock.withdrawn,
       };
     } catch {
       return null;
     }
   };
 
-  const withdrawFromLock = async (lockId: number, to: string, amount: string) => {
-    if (!lockerContract || !signer) throw new Error("Locker contract not connected to signer");
+  const withdrawFromLock = async (
+    lockId: number,
+    to: string,
+    amount: string
+  ) => {
+    if (!lockerContract || !provider) {
+      throw new Error("Wallet not connected");
+    }
 
+    const signer = await provider.getSigner();
     const lock = await lockerContract.getLock(lockId);
     const decimals = await getTokenDecimals(lock.token);
 
-    const tx = await lockerContract.withdrawFromLock(
-      lockId,
-      to,
-      parseUnits(amount, decimals)
-    );
+    const tx = await lockerContract
+      .connect(signer)
+      .withdrawFromLock(lockId, to, parseUnits(amount, decimals));
 
     return await tx.wait();
   };
 
   /* ---------- VESTINGS ---------- */
-  const getBeneficiaryVestings = async (account: string): Promise<number[]> => {
+  const getBeneficiaryVestings = async (
+    account: string
+  ): Promise<number[]> => {
     if (!lockerContract) return [];
     try {
-      const ids: bigint[] = await lockerContract.getBeneficiaryVestings(account);
+      const ids: bigint[] =
+        await lockerContract.getBeneficiaryVestings(account);
       return ids.map(id => Number(id));
     } catch {
       return [];
@@ -134,7 +150,7 @@ const useLocker = (provider: BrowserProvider | null) => {
         amount: formatUnits(v.amount, decimals),
         start: Number(v.start),
         duration: Number(v.duration),
-        claimed: formatUnits(v.claimed, decimals)
+        claimed: formatUnits(v.claimed, decimals),
       };
     } catch {
       return null;
@@ -142,9 +158,16 @@ const useLocker = (provider: BrowserProvider | null) => {
   };
 
   const claimVesting = async (vestId: number) => {
-    if (!lockerContract || !signer) throw new Error("Locker contract not connected to signer");
+    if (!lockerContract || !provider) {
+      throw new Error("Wallet not connected");
+    }
 
-    const tx = await lockerContract.withdrawFromVesting(vestId);
+    const signer = await provider.getSigner();
+
+    const tx = await lockerContract
+      .connect(signer)
+      .withdrawFromVesting(vestId);
+
     return await tx.wait();
   };
 
@@ -157,7 +180,7 @@ const useLocker = (provider: BrowserProvider | null) => {
     // Vestings
     getBeneficiaryVestings,
     getVesting,
-    claimVesting
+    claimVesting,
   };
 };
 
