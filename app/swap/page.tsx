@@ -5,12 +5,7 @@ import { useWallet } from "@/hooks/useWallet";
 import { useSwap } from "@/hooks/useSwap";
 import TokenSelect from "@/components/TokenSelect";
 
-import {
-  TOKEN_LIST,
-  TOKEN_ADDRESS_MAP,
-  APP_CONSTANTS,
-} from "@/utils/constants";
-
+import { TOKEN_LIST, TOKEN_ADDRESS_MAP, APP_CONSTANTS } from "@/utils/constants";
 import "@/styles/swap.css";
 
 type TokenSymbol = keyof typeof TOKEN_ADDRESS_MAP;
@@ -23,18 +18,15 @@ export default function SwapPage() {
   const [toToken, setToToken] = useState(TOKEN_LIST[1]);
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
-  const [slippage, setSlippage] = useState<number>(
-    APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT
-  );
+  const [slippage, setSlippage] = useState<number>(APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT);
   const [loading, setLoading] = useState(false);
 
-  /* ---------- Estimate output ---------- */
+  /* ---------- Estimate output with debounce ---------- */
   const estimateAmountOut = useCallback(async () => {
-    if (!amountIn || !getAmountOut || Number(amountIn) <= 0) {
+    if (!amountIn || Number(amountIn) <= 0 || fromToken.address === toToken.address) {
       setAmountOut("");
       return;
     }
-
     try {
       const quoted = await getAmountOut(
         fromToken.symbol as TokenSymbol,
@@ -46,11 +38,12 @@ export default function SwapPage() {
       console.error("Quote error:", err);
       setAmountOut("");
     }
-  }, [amountIn, fromToken.symbol, toToken.symbol, getAmountOut]);
+  }, [amountIn, fromToken.symbol, toToken.symbol, getAmountOut, toToken.address]);
 
   useEffect(() => {
-    estimateAmountOut();
-  }, [estimateAmountOut]);
+    const timeout = setTimeout(() => estimateAmountOut(), 400);
+    return () => clearTimeout(timeout);
+  }, [amountIn, fromToken, toToken, estimateAmountOut]);
 
   /* ---------- Swap direction ---------- */
   const handleSwitchTokens = () => {
@@ -65,15 +58,17 @@ export default function SwapPage() {
       alert("Connect wallet first");
       return;
     }
-
     if (!amountIn || Number(amountIn) <= 0) {
       alert("Enter a valid amount");
+      return;
+    }
+    if (fromToken.address === toToken.address) {
+      alert("Cannot swap the same token");
       return;
     }
 
     try {
       setLoading(true);
-
       await swapExactTokensForTokens({
         amountIn,
         fromToken: fromToken.symbol as TokenSymbol,
@@ -92,6 +87,9 @@ export default function SwapPage() {
       setLoading(false);
     }
   };
+
+  /* ---------- Formatted Output ---------- */
+  const formattedAmountOut = amountOut ? Number(amountOut).toFixed(6) : "--";
 
   return (
     <div className="swap-page">
@@ -141,13 +139,15 @@ export default function SwapPage() {
 
           <div className="swap-info">
             <span>Estimated Output</span>
-            <strong>{amountOut || "--"}</strong>
+            <strong>{formattedAmountOut}</strong>
           </div>
 
           <button
             className="swap-submit"
             onClick={handleSwap}
-            disabled={loading || !amountIn || Number(amountIn) <= 0}
+            disabled={
+              loading || !amountIn || Number(amountIn) <= 0 || fromToken.address === toToken.address
+            }
           >
             {loading ? "Swapping..." : "Swap"}
           </button>
