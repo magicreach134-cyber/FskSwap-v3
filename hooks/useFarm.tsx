@@ -1,15 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import {
-  Contract,
-  BrowserProvider,
-  JsonRpcProvider,
-  JsonRpcSigner,
-  parseUnits,
-  formatUnits,
-  MaxUint256,
-} from "ethers";
+import { Contract, BrowserProvider, parseUnits, formatUnits, MaxUint256 } from "ethers";
 
 import {
   stakingAddress,
@@ -27,10 +19,7 @@ export interface FarmView {
   pending: string;
 }
 
-const useFarm = (
-  signer: JsonRpcSigner | null,
-  refreshInterval = 15_000
-) => {
+const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => {
   const [staking, setStaking] = useState<Contract | null>(null);
   const [farms, setFarms] = useState<FarmView[]>([]);
   const [user, setUser] = useState<string>("");
@@ -41,17 +30,15 @@ const useFarm = (
   useEffect(() => {
     const init = async () => {
       try {
-        const provider =
-          signer?.provider ??
-          new JsonRpcProvider(DEFAULT_BNB_RPC);
-
+        const readProvider = provider ?? new BrowserProvider(DEFAULT_BNB_RPC);
+        const signer = provider?.getSigner();
         const address = signer ? await signer.getAddress() : "";
         setUser(address);
 
         const contract = new Contract(
           stakingAddress,
           ABIS.FSKSwapLPStaking,
-          signer ?? provider
+          signer ?? readProvider
         );
 
         setStaking(contract);
@@ -61,26 +48,22 @@ const useFarm = (
     };
 
     init();
-  }, [signer]);
+  }, [provider]);
 
   /* ---------- LOAD FARMS ---------- */
   const loadFarms = async () => {
     if (!staking || !user) return;
 
     try {
-      const poolLength: bigint = await staking.poolLength();
+      const poolLength: number = Number(await staking.poolLength());
       const result: FarmView[] = [];
 
-      for (let pid = 0n; pid < poolLength; pid++) {
+      for (let pid = 0; pid < poolLength; pid++) {
         const pool = await staking.poolInfo(pid);
         const pending: bigint = await staking.pendingReward(pid, user);
         const userInfo = await staking.userInfo(pid, user);
 
-        const lp = new Contract(
-          pool.lpToken,
-          MINIMAL_ERC20_ABI,
-          staking.runner
-        );
+        const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer ?? provider);
 
         const [name, symbol, decimals] = await Promise.all([
           lp.name(),
@@ -89,7 +72,7 @@ const useFarm = (
         ]);
 
         result.push({
-          pid: Number(pid),
+          pid,
           lpToken: pool.lpToken,
           name,
           symbol,
@@ -121,15 +104,17 @@ const useFarm = (
 
   /* ---------- ACTIONS ---------- */
   const stake = async (pid: number, amount: string) => {
-    if (!staking || !signer) throw new Error("Wallet not connected");
+    if (!staking || !provider) throw new Error("Wallet not connected");
 
+    const signer = provider.getSigner();
     const pool = await staking.poolInfo(pid);
     const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
     const decimals = await lp.decimals();
 
     const parsed = parseUnits(amount, decimals);
 
-    const allowance: bigint = await lp.allowance(user, stakingAddress);
+    const owner = await signer.getAddress();
+    const allowance: bigint = await lp.allowance(owner, stakingAddress);
     if (allowance < parsed) {
       const tx = await lp.approve(stakingAddress, MaxUint256);
       await tx.wait();
@@ -141,8 +126,9 @@ const useFarm = (
   };
 
   const unstake = async (pid: number, amount: string) => {
-    if (!staking || !signer) throw new Error("Wallet not connected");
+    if (!staking || !provider) throw new Error("Wallet not connected");
 
+    const signer = provider.getSigner();
     const pool = await staking.poolInfo(pid);
     const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
     const decimals = await lp.decimals();
@@ -155,7 +141,7 @@ const useFarm = (
   };
 
   const claim = async (pid: number) => {
-    if (!staking || !signer) throw new Error("Wallet not connected");
+    if (!staking || !provider) throw new Error("Wallet not connected");
 
     const tx = await staking.claim(pid);
     await tx.wait();
