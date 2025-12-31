@@ -7,7 +7,7 @@ import { TOKEN_ADDRESS_MAP, ABIS, routerAddress } from "../utils/constants";
 
 /**
  * useTokenPrice Hook
- * Fetches the price of a token in terms of a base token (e.g., WBNB or FSK)
+ * Fetches the price of a token in terms of a base token (default: WBNB)
  */
 interface UseTokenPriceOptions {
   provider: Signer | BrowserProvider | null;
@@ -20,6 +20,7 @@ const useTokenPrice = ({ provider, tokenAddress, baseTokenAddress }: UseTokenPri
   const baseToken = baseTokenAddress || TOKEN_ADDRESS_MAP.WBNB;
 
   useEffect(() => {
+    let mounted = true;
     if (!provider || !tokenAddress) return;
 
     const fetchPrice = async () => {
@@ -32,16 +33,18 @@ const useTokenPrice = ({ provider, tokenAddress, baseTokenAddress }: UseTokenPri
           [tokenAddress, baseToken]
         );
 
-        // Convert to number (considering decimals)
         const tokenPrice = parseFloat(formatUnits(amountsOut[1], 18));
-        setPrice(tokenPrice);
+
+        if (mounted) setPrice(tokenPrice);
       } catch (err) {
         console.error("useTokenPrice error:", err);
-        setPrice(null);
+        if (mounted) setPrice(null);
       }
     };
 
     fetchPrice();
+
+    return () => { mounted = false; };
   }, [provider, tokenAddress, baseToken]);
 
   return { price };
