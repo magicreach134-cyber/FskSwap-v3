@@ -1,8 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Contract, BrowserProvider, JsonRpcSigner } from "ethers";
-import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../utils/constants";
+import {
+  Contract,
+  BrowserProvider,
+  JsonRpcProvider,
+} from "ethers";
+
+import {
+  launchpadFactoryAddress,
+  FSKLaunchpadFactoryABI,
+  DEFAULT_BNB_RPC,
+} from "../utils/constants";
 
 interface Presale {
   address: string;
@@ -18,6 +27,17 @@ interface Presale {
   contract: Contract;
 }
 
+const PRESALE_ABI = [
+  "function token() view returns (address)",
+  "function softCap() view returns (uint256)",
+  "function hardCap() view returns (uint256)",
+  "function totalRaised() view returns (uint256)",
+  "function startTime() view returns (uint256)",
+  "function endTime() view returns (uint256)",
+  "function contributions(address) view returns (uint256)",
+  "function finalized() view returns (bool)",
+];
+
 const usePresales = (
   provider: BrowserProvider | null,
   userAddress: string | null
@@ -26,32 +46,29 @@ const usePresales = (
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!provider || !userAddress) return;
-
     const fetchPresales = async () => {
       setLoading(true);
+
       try {
-        const signer: JsonRpcSigner = provider.getSigner();
+        const readProvider = provider
+          ? provider
+          : new JsonRpcProvider(DEFAULT_BNB_RPC);
+
         const factory = new Contract(
           launchpadFactoryAddress,
           FSKLaunchpadFactoryABI,
-          signer
+          readProvider
         );
 
         const presaleAddresses: string[] = await factory.getPresales();
 
         const presaleDetails: Presale[] = await Promise.all(
           presaleAddresses.map(async (addr) => {
-            const presaleContract = new Contract(addr, [
-              "function token() view returns (address)",
-              "function softCap() view returns (uint256)",
-              "function hardCap() view returns (uint256)",
-              "function totalRaised() view returns (uint256)",
-              "function startTime() view returns (uint256)",
-              "function endTime() view returns (uint256)",
-              "function contributions(address) view returns (uint256)",
-              "function finalized() view returns (bool)",
-            ], signer);
+            const presaleContract = new Contract(
+              addr,
+              PRESALE_ABI,
+              readProvider
+            );
 
             const [
               token,
@@ -60,8 +77,8 @@ const usePresales = (
               totalRaised,
               startTime,
               endTime,
+              finalized,
               userContribution,
-              finalized
             ] = await Promise.all([
               presaleContract.token(),
               presaleContract.softCap(),
@@ -69,16 +86,19 @@ const usePresales = (
               presaleContract.totalRaised(),
               presaleContract.startTime(),
               presaleContract.endTime(),
-              presaleContract.contributions(userAddress),
               presaleContract.finalized(),
+              userAddress
+                ? presaleContract.contributions(userAddress)
+                : 0n,
             ]);
 
             const now = Math.floor(Date.now() / 1000);
-            const status: "upcoming" | "active" | "ended" = now < startTime
-              ? "upcoming"
-              : now >= startTime && now <= endTime
-              ? "active"
-              : "ended";
+            const status: "upcoming" | "active" | "ended" =
+              now < Number(startTime)
+                ? "upcoming"
+                : now <= Number(endTime)
+                ? "active"
+                : "ended";
 
             return {
               address: addr,
@@ -107,10 +127,15 @@ const usePresales = (
     fetchPresales();
   }, [provider, userAddress]);
 
-  const activePresales = presales.filter((p) => p.status === "active");
-  const upcomingPresales = presales.filter((p) => p.status === "upcoming");
+  const activePresales = presales.filter(p => p.status === "active");
+  const upcomingPresales = presales.filter(p => p.status === "upcoming");
 
-  return { presales, activePresales, upcomingPresales, loading };
+  return {
+    presales,
+    activePresales,
+    upcomingPresales,
+    loading,
+  };
 };
 
 export default usePresales;
