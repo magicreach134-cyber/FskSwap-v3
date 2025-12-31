@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Contract, BrowserProvider, parseUnits, formatUnits, MaxUint256 } from "ethers";
+import {
+  Contract,
+  BrowserProvider,
+  JsonRpcProvider,
+  parseUnits,
+  formatUnits,
+  MaxUint256,
+} from "ethers";
 
 import {
   stakingAddress,
@@ -30,9 +37,18 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
   useEffect(() => {
     const init = async () => {
       try {
-        const readProvider = provider ?? new BrowserProvider(DEFAULT_BNB_RPC);
-        const signer = provider?.getSigner();
-        const address = signer ? await signer.getAddress() : "";
+        const readProvider = provider
+          ? provider
+          : new JsonRpcProvider(DEFAULT_BNB_RPC);
+
+        let signer = null;
+        let address = "";
+
+        if (provider) {
+          signer = await provider.getSigner();
+          address = await signer.getAddress();
+        }
+
         setUser(address);
 
         const contract = new Contract(
@@ -55,7 +71,7 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
     if (!staking || !user) return;
 
     try {
-      const poolLength: number = Number(await staking.poolLength());
+      const poolLength = Number(await staking.poolLength());
       const result: FarmView[] = [];
 
       for (let pid = 0; pid < poolLength; pid++) {
@@ -63,7 +79,11 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
         const pending: bigint = await staking.pendingReward(pid, user);
         const userInfo = await staking.userInfo(pid, user);
 
-        const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer ?? provider);
+        const lp = new Contract(
+          pool.lpToken,
+          MINIMAL_ERC20_ABI,
+          staking.runner
+        );
 
         const [name, symbol, decimals] = await Promise.all([
           lp.name(),
@@ -91,11 +111,9 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
   useEffect(() => {
     if (!staking || !user) return;
 
-    loadFarms().catch(console.error);
+    loadFarms();
 
-    intervalRef.current = setInterval(() => {
-      loadFarms().catch(console.error);
-    }, refreshInterval);
+    intervalRef.current = setInterval(loadFarms, refreshInterval);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -106,21 +124,22 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
   const stake = async (pid: number, amount: string) => {
     if (!staking || !provider) throw new Error("Wallet not connected");
 
-    const signer = provider.getSigner();
+    const signer = await provider.getSigner();
     const pool = await staking.poolInfo(pid);
+
     const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
     const decimals = await lp.decimals();
-
     const parsed = parseUnits(amount, decimals);
 
     const owner = await signer.getAddress();
     const allowance: bigint = await lp.allowance(owner, stakingAddress);
+
     if (allowance < parsed) {
       const tx = await lp.approve(stakingAddress, MaxUint256);
       await tx.wait();
     }
 
-    const tx = await staking.deposit(pid, parsed);
+    const tx = await staking.connect(signer).deposit(pid, parsed);
     await tx.wait();
     await loadFarms();
   };
@@ -128,14 +147,14 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
   const unstake = async (pid: number, amount: string) => {
     if (!staking || !provider) throw new Error("Wallet not connected");
 
-    const signer = provider.getSigner();
+    const signer = await provider.getSigner();
     const pool = await staking.poolInfo(pid);
+
     const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
     const decimals = await lp.decimals();
-
     const parsed = parseUnits(amount, decimals);
 
-    const tx = await staking.withdraw(pid, parsed);
+    const tx = await staking.connect(signer).withdraw(pid, parsed);
     await tx.wait();
     await loadFarms();
   };
@@ -143,7 +162,8 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
   const claim = async (pid: number) => {
     if (!staking || !provider) throw new Error("Wallet not connected");
 
-    const tx = await staking.claim(pid);
+    const signer = await provider.getSigner();
+    const tx = await staking.connect(signer).claim(pid);
     await tx.wait();
     await loadFarms();
   };
