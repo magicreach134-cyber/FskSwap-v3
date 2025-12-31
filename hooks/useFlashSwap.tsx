@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ethers, Contract } from "ethers";
+import {
+  ethers,
+  Contract,
+  Signer,
+  BrowserProvider,
+  JsonRpcProvider
+} from "ethers";
 
 import FskFlashSwapABI from "@/utils/abis/FskFlashSwap.json";
 import { CONTRACTS, DEFAULT_BNB_RPC } from "@/utils/constants";
@@ -13,13 +19,25 @@ export interface EstimateResult {
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-const useFlashSwap = (signer?: ethers.Signer | null) => {
+const useFlashSwap = (signer?: Signer | null) => {
   const [contract, setContract] = useState<Contract | null>(null);
 
   /* ---------- INIT CONTRACT ---------- */
   useEffect(() => {
-    const provider = signer ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC);
-    const instance = new Contract(CONTRACTS.FskFlashSwap, FskFlashSwapABI, signer ?? provider);
+    let provider;
+
+    if (signer) {
+      provider = signer;
+    } else {
+      provider = new JsonRpcProvider(DEFAULT_BNB_RPC);
+    }
+
+    const instance = new Contract(
+      CONTRACTS.FskFlashSwap,
+      FskFlashSwapABI,
+      provider
+    );
+
     setContract(instance);
   }, [signer]);
 
@@ -29,19 +47,25 @@ const useFlashSwap = (signer?: ethers.Signer | null) => {
     routers: string[],
     path: string[]
   ): Promise<EstimateResult> => {
-    if (!contract || !amount) {
+    if (!contract || !amount || routers.length === 0 || path.length === 0) {
       return { maxProfit: "0", bestRouter: ZERO_ADDRESS };
     }
 
     try {
       const parsedAmount = ethers.parseUnits(amount, 18);
 
-      const [profitBN, bestRouter]: [bigint, string] =
-        await contract.estimateBestRouter(parsedAmount, routers, path);
+      const result = await contract.estimateBestRouter(
+        parsedAmount,
+        routers,
+        path
+      );
+
+      const profitBN = result[0] as bigint;
+      const bestRouter = result[1] as string;
 
       return {
         maxProfit: ethers.formatUnits(profitBN, 18),
-        bestRouter,
+        bestRouter
       };
     } catch (err) {
       console.error("estimateBestRouter failed:", err);
@@ -57,17 +81,21 @@ const useFlashSwap = (signer?: ethers.Signer | null) => {
     routers: string[],
     path: string[]
   ) => {
-    if (!contract) throw new Error("FlashSwap contract not initialized");
+    if (!contract || !signer) {
+      throw new Error("FlashSwap contract not connected to signer");
+    }
 
     const parsedAmount = ethers.parseUnits(amount, 18);
 
-    const tx = await contract.executeFlashSwap(
-      tokenBorrow,
-      parsedAmount,
-      tokenTarget,
-      routers,
-      path
-    );
+    const tx = await contract
+      .connect(signer)
+      .executeFlashSwap(
+        tokenBorrow,
+        parsedAmount,
+        tokenTarget,
+        routers,
+        path
+      );
 
     return await tx.wait();
   };
@@ -88,7 +116,7 @@ const useFlashSwap = (signer?: ethers.Signer | null) => {
   return {
     estimateBestRouter,
     executeFlashSwap,
-    getPrice,
+    getPrice
   };
 };
 
