@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ethers } from "ethers";
-import { TOKEN_LIST, TOKEN_ADDRESS_MAP } from "../utils/constants";
+import { Contract, BrowserProvider, Signer, JsonRpcProvider, formatUnits } from "ethers";
+import { TOKEN_LIST } from "../utils/constants";
 
 export interface TokenInfo {
   symbol: string;
@@ -13,7 +13,7 @@ export interface TokenInfo {
 }
 
 interface UseTokenListOptions {
-  provider?: ethers.providers.Web3Provider;
+  provider?: Signer | BrowserProvider | JsonRpcProvider | null;
   userAddress?: string;
 }
 
@@ -31,13 +31,13 @@ const useTokenList = ({ provider, userAddress }: UseTokenListOptions = {}) => {
       if (provider && userAddress) {
         for (let i = 0; i < tokenData.length; i++) {
           try {
-            const tokenContract = new ethers.Contract(
+            const tokenContract = new Contract(
               tokenData[i].address,
               ["function balanceOf(address) view returns (uint256)"],
               provider
             );
-            const rawBalance: ethers.BigNumber = await tokenContract.balanceOf(userAddress);
-            tokenData[i].balance = ethers.utils.formatUnits(rawBalance, tokenData[i].decimals);
+            const rawBalance: bigint = await tokenContract.balanceOf(userAddress);
+            tokenData[i].balance = formatUnits(rawBalance, tokenData[i].decimals);
           } catch (err) {
             console.error(`Failed to fetch balance for ${tokenData[i].symbol}:`, err);
             tokenData[i].balance = "0";
@@ -51,13 +51,11 @@ const useTokenList = ({ provider, userAddress }: UseTokenListOptions = {}) => {
     loadTokens();
   }, [provider, userAddress]);
 
-  const getTokenBySymbol = (symbol: string) => {
-    return tokens.find((t) => t.symbol.toUpperCase() === symbol.toUpperCase());
-  };
+  const getTokenBySymbol = (symbol: string) =>
+    tokens.find((t) => t.symbol.toUpperCase() === symbol.toUpperCase());
 
-  const getTokenByAddress = (address: string) => {
-    return tokens.find((t) => t.address.toLowerCase() === address.toLowerCase());
-  };
+  const getTokenByAddress = (address: string) =>
+    tokens.find((t) => t.address.toLowerCase() === address.toLowerCase());
 
   return { tokens, getTokenBySymbol, getTokenByAddress };
 };
