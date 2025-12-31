@@ -81,6 +81,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
         await wcProvider.enable();
         wcRef.current = wcProvider;
 
+        // ethers v6 BrowserProvider works with any EIP-1193 provider
         web3Provider = new BrowserProvider(wcProvider as any);
       } else {
         throw new Error("No compatible wallet provider found");
