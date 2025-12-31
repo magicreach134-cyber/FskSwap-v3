@@ -74,6 +74,8 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
       const poolLength = Number(await staking.poolLength());
       const result: FarmView[] = [];
 
+      const readProvider = staking.signer ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
+
       for (let pid = 0; pid < poolLength; pid++) {
         const pool = await staking.poolInfo(pid);
         const pending: bigint = await staking.pendingReward(pid, user);
@@ -82,7 +84,7 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
         const lp = new Contract(
           pool.lpToken,
           MINIMAL_ERC20_ABI,
-          staking.runner
+          readProvider
         );
 
         const [name, symbol, decimals] = await Promise.all([
@@ -150,9 +152,7 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
     const signer = await provider.getSigner();
     const pool = await staking.poolInfo(pid);
 
-    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
-    const decimals = await lp.decimals();
-    const parsed = parseUnits(amount, decimals);
+    const parsed = parseUnits(amount, await new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer).decimals());
 
     const tx = await staking.connect(signer).withdraw(pid, parsed);
     await tx.wait();
