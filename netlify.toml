@@ -1,11 +1,22 @@
+# netlify.toml
 [build]
   command = "npm run build"
   publish = ".next"
+  environment = { NODE_VERSION = "18" }
 
-[build.environment]
-  NODE_VERSION = "18"
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
+# Redirect all requests to Netlify's Next.js serverless functions for SSR
+[[redirects]]
+  from = "/_next/*"
+  to = "/_next/:splat"
+  status = 200
+  force = true
+
+# Fallback for client-side routes (SPA behavior)
 [[redirects]]
   from = "/*"
-  to = "/"
+  to = "/index.html"
   status = 200
+  force = false
