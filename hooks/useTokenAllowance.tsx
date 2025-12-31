@@ -6,6 +6,7 @@ import { Contract, Signer, BrowserProvider, parseUnits, formatUnits } from "ethe
 const MINIMAL_ERC20_ABI = [
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
+  "function decimals() view returns (uint8)"
 ];
 
 export const useTokenAllowance = (
@@ -22,9 +23,16 @@ export const useTokenAllowance = (
     const checkAllowance = async () => {
       try {
         const tokenContract = new Contract(tokenAddress, MINIMAL_ERC20_ABI, signerOrProvider);
-        const owner = "getAddress" in signerOrProvider ? await signerOrProvider.getAddress() : "";
+
+        const owner =
+          "getAddress" in signerOrProvider
+            ? await signerOrProvider.getAddress()
+            : "";
+
+        const decimals = await tokenContract.decimals();
         const currentAllowance: bigint = await tokenContract.allowance(owner, spenderAddress);
-        setAllowance(formatUnits(currentAllowance, 18));
+
+        setAllowance(formatUnits(currentAllowance, decimals));
         setApproved(currentAllowance > 0n);
       } catch (err) {
         console.error("Allowance check failed:", err);
@@ -36,10 +44,15 @@ export const useTokenAllowance = (
 
   const approve = async (amount: string | number) => {
     if (!signerOrProvider) throw new Error("Wallet not connected");
+
     try {
       const tokenContract = new Contract(tokenAddress, MINIMAL_ERC20_ABI, signerOrProvider);
-      const tx = await tokenContract.approve(spenderAddress, parseUnits(amount.toString(), 18));
+      const decimals = await tokenContract.decimals();
+      const parsedAmount = parseUnits(amount.toString(), decimals);
+
+      const tx = await tokenContract.approve(spenderAddress, parsedAmount);
       await tx.wait();
+
       setAllowance(amount.toString());
       setApproved(true);
     } catch (err) {
