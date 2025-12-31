@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
-import useLocker, { Lock, Vesting } from "@/hooks/useLocker";
 import { useWallet } from "@/hooks/useWallet";
+import useLocker, { Lock, Vesting } from "@/hooks/useLocker";
 import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import "@/styles/locker.css";
+
+type LoadingMap = {
+  locks: Record<number, boolean>;
+  vestings: Record<number, boolean>;
+};
 
 const LockerPage = () => {
   const { signer, account } = useWallet();
@@ -23,6 +27,7 @@ const LockerPage = () => {
   const [locks, setLocks] = useState<(Lock & { id: number })[]>([]);
   const [vestings, setVestings] = useState<(Vesting & { id: number })[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMap, setLoadingMap] = useState<LoadingMap>({ locks: {}, vestings: {} });
 
   /* ---------------- Load Locks & Vestings ---------------- */
   useEffect(() => {
@@ -31,7 +36,7 @@ const LockerPage = () => {
     const loadData = async () => {
       setLoading(true);
       try {
-        // Load locks
+        // Load Locks
         const lockIds = await getOwnerLocks(account);
         const lockData = await Promise.all(
           lockIds.map(async (id) => {
@@ -41,7 +46,7 @@ const LockerPage = () => {
         );
         setLocks(lockData.filter(Boolean) as (Lock & { id: number })[]);
 
-        // Load vestings
+        // Load Vestings
         const vestIds = await getBeneficiaryVestings(account);
         const vestData = await Promise.all(
           vestIds.map(async (id) => {
@@ -62,7 +67,12 @@ const LockerPage = () => {
   /* ---------------- Actions ---------------- */
   const handleWithdrawLock = async (lockId: number, amount: string) => {
     if (!account) return;
-    setLoading(true);
+
+    setLoadingMap((prev) => ({
+      ...prev,
+      locks: { ...prev.locks, [lockId]: true },
+    }));
+
     try {
       await withdrawFromLock(lockId, account, amount);
       const updatedLock = await getLock(lockId);
@@ -72,11 +82,19 @@ const LockerPage = () => {
     } catch (err: any) {
       alert("Withdraw failed: " + (err?.message || err));
     }
-    setLoading(false);
+
+    setLoadingMap((prev) => ({
+      ...prev,
+      locks: { ...prev.locks, [lockId]: false },
+    }));
   };
 
   const handleClaimVesting = async (vestId: number) => {
-    setLoading(true);
+    setLoadingMap((prev) => ({
+      ...prev,
+      vestings: { ...prev.vestings, [vestId]: true },
+    }));
+
     try {
       await claimVesting(vestId);
       const updatedVesting = await getVesting(vestId);
@@ -86,7 +104,11 @@ const LockerPage = () => {
     } catch (err: any) {
       alert("Claim failed: " + (err?.message || err));
     }
-    setLoading(false);
+
+    setLoadingMap((prev) => ({
+      ...prev,
+      vestings: { ...prev.vestings, [vestId]: false },
+    }));
   };
 
   return (
@@ -113,7 +135,12 @@ const LockerPage = () => {
               <p><strong>Unlock:</strong> {new Date(l.unlockTime * 1000).toLocaleString()}</p>
               <p><strong>Withdrawn:</strong> {l.withdrawn ? "Yes" : "No"}</p>
               {!l.withdrawn && (
-                <button onClick={() => handleWithdrawLock(l.id, l.amount)}>Withdraw</button>
+                <button
+                  disabled={loadingMap.locks[l.id]}
+                  onClick={() => handleWithdrawLock(l.id, l.amount)}
+                >
+                  {loadingMap.locks[l.id] ? "Withdrawing..." : "Withdraw"}
+                </button>
               )}
             </div>
           ))}
@@ -134,7 +161,12 @@ const LockerPage = () => {
                 {v.claimed === v.amount ? "Claimed" : "Pending"}
               </span>
               {v.claimed !== v.amount && (
-                <button onClick={() => handleClaimVesting(v.id)}>Claim</button>
+                <button
+                  disabled={loadingMap.vestings[v.id]}
+                  onClick={() => handleClaimVesting(v.id)}
+                >
+                  {loadingMap.vestings[v.id] ? "Claiming..." : "Claim"}
+                </button>
               )}
             </div>
           ))}
