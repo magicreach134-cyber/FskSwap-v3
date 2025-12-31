@@ -1,9 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ethers } from "ethers";
+import { Contract, Signer, BrowserProvider, parseUnits, formatUnits, JsonRpcProvider } from "ethers";
 
-const useTokenBalance = (tokenAddress, account, provider, decimals = 18) => {
+const MINIMAL_ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)"
+];
+
+const useTokenBalance = (
+  tokenAddress: string,
+  account: string,
+  provider: Signer | BrowserProvider | JsonRpcProvider | null,
+  decimals = 18
+) => {
   const [balance, setBalance] = useState("0");
 
   useEffect(() => {
@@ -11,10 +20,9 @@ const useTokenBalance = (tokenAddress, account, provider, decimals = 18) => {
 
     const fetchBalance = async () => {
       try {
-        const abi = ["function balanceOf(address) view returns (uint256)"];
-        const contract = new ethers.Contract(tokenAddress, abi, provider);
-        const bal = await contract.balanceOf(account);
-        setBalance(ethers.utils.formatUnits(bal, decimals));
+        const contract = new Contract(tokenAddress, MINIMAL_ERC20_ABI, provider);
+        const bal: bigint = await contract.balanceOf(account);
+        setBalance(formatUnits(bal, decimals));
       } catch (err) {
         console.error("useTokenBalance error:", err);
         setBalance("0");
