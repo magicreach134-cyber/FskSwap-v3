@@ -1,11 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ethers } from "ethers";
+import { Contract, BrowserProvider, JsonRpcSigner } from "ethers";
 import { launchpadFactoryAddress, FSKLaunchpadFactoryABI } from "../utils/constants";
 
-const usePresales = (provider, userAddress) => {
-  const [presales, setPresales] = useState([]);
+interface Presale {
+  address: string;
+  token: string;
+  softCap: bigint;
+  hardCap: bigint;
+  totalRaised: bigint;
+  startTime: number;
+  endTime: number;
+  userContribution: bigint;
+  finalized: boolean;
+  status: "upcoming" | "active" | "ended";
+  contract: Contract;
+}
+
+const usePresales = (
+  provider: BrowserProvider | null,
+  userAddress: string | null
+) => {
+  const [presales, setPresales] = useState<Presale[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -14,18 +31,18 @@ const usePresales = (provider, userAddress) => {
     const fetchPresales = async () => {
       setLoading(true);
       try {
-        const signer = provider.getSigner();
-        const factory = new ethers.Contract(
+        const signer: JsonRpcSigner = provider.getSigner();
+        const factory = new Contract(
           launchpadFactoryAddress,
           FSKLaunchpadFactoryABI,
           signer
         );
 
-        const presaleAddresses = await factory.getPresales();
+        const presaleAddresses: string[] = await factory.getPresales();
 
-        const presaleDetails = await Promise.all(
+        const presaleDetails: Presale[] = await Promise.all(
           presaleAddresses.map(async (addr) => {
-            const presaleContract = new ethers.Contract(addr, [
+            const presaleContract = new Contract(addr, [
               "function token() view returns (address)",
               "function softCap() view returns (uint256)",
               "function hardCap() view returns (uint256)",
@@ -57,7 +74,7 @@ const usePresales = (provider, userAddress) => {
             ]);
 
             const now = Math.floor(Date.now() / 1000);
-            const status = now < startTime
+            const status: "upcoming" | "active" | "ended" = now < startTime
               ? "upcoming"
               : now >= startTime && now <= endTime
               ? "active"
@@ -69,8 +86,8 @@ const usePresales = (provider, userAddress) => {
               softCap,
               hardCap,
               totalRaised,
-              startTime,
-              endTime,
+              startTime: Number(startTime),
+              endTime: Number(endTime),
               userContribution,
               finalized,
               status,
