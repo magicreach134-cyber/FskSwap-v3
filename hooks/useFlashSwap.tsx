@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Contract, BrowserProvider, JsonRpcSigner, parseUnits, formatUnits } from "ethers";
+import {
+  Contract,
+  BrowserProvider,
+  JsonRpcProvider,
+  parseUnits,
+  formatUnits,
+} from "ethers";
 
 import FskFlashSwapABI from "@/utils/abis/FskFlashSwap.json";
 import { CONTRACTS, DEFAULT_BNB_RPC } from "@/utils/constants";
@@ -15,20 +21,19 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const useFlashSwap = (provider: BrowserProvider | null) => {
   const [contract, setContract] = useState<Contract | null>(null);
-  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
 
   /* ---------- INIT CONTRACT ---------- */
   useEffect(() => {
     const init = async () => {
       try {
-        const readProvider = provider ?? new BrowserProvider(DEFAULT_BNB_RPC);
-        const signerInstance = provider?.getSigner() ?? null;
-        setSigner(signerInstance);
+        const readProvider = provider
+          ? provider
+          : new JsonRpcProvider(DEFAULT_BNB_RPC);
 
         const instance = new Contract(
           CONTRACTS.FskFlashSwap,
           FskFlashSwapABI,
-          signerInstance ?? readProvider
+          readProvider
         );
 
         setContract(instance);
@@ -54,14 +59,15 @@ const useFlashSwap = (provider: BrowserProvider | null) => {
     try {
       const parsedAmount = parseUnits(amount, 18);
 
-      const result = await contract.estimateBestRouter(parsedAmount, routers, path);
-
-      const profitBN = result[0] as bigint;
-      const bestRouter = result[1] as string;
+      const [profit, router] = await contract.estimateBestRouter(
+        parsedAmount,
+        routers,
+        path
+      );
 
       return {
-        maxProfit: formatUnits(profitBN, 18),
-        bestRouter
+        maxProfit: formatUnits(profit as bigint, 18),
+        bestRouter: router as string,
       };
     } catch (err) {
       console.error("estimateBestRouter failed:", err);
@@ -77,11 +83,17 @@ const useFlashSwap = (provider: BrowserProvider | null) => {
     routers: string[],
     path: string[]
   ) => {
-    if (!contract || !signer) throw new Error("FlashSwap contract not connected to signer");
+    if (!contract || !provider) {
+      throw new Error("Wallet not connected");
+    }
 
+    const signer = await provider.getSigner();
     const parsedAmount = parseUnits(amount, 18);
 
-    const tx = await contract.executeFlashSwap(tokenBorrow, parsedAmount, tokenTarget, routers, path);
+    const tx = await contract
+      .connect(signer)
+      .executeFlashSwap(tokenBorrow, parsedAmount, tokenTarget, routers, path);
+
     return await tx.wait();
   };
 
@@ -101,7 +113,7 @@ const useFlashSwap = (provider: BrowserProvider | null) => {
   return {
     estimateBestRouter,
     executeFlashSwap,
-    getPrice
+    getPrice,
   };
 };
 
