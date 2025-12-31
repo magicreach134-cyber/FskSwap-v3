@@ -41,9 +41,9 @@ export default function LaunchpadPage() {
   const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
   const [userAddress, setUserAddress] = useState<string>("");
   const [presales, setPresales] = useState<Presale[]>([]);
-  const [contribution, setContribution] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [txPending, setTxPending] = useState<boolean>(false);
+  const [contributions, setContributions] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [txPending, setTxPending] = useState(false);
 
   /* ---------- WALLET INIT ---------- */
   useEffect(() => {
@@ -137,7 +137,10 @@ export default function LaunchpadPage() {
   }, [signer, userAddress]);
 
   /* ---------- TRANSACTION HANDLER ---------- */
-  const handleTx = async (contractCall: () => Promise<any>, resetContribution = false) => {
+  const handleTx = async (
+    contractCall: () => Promise<any>,
+    resetInputKey?: string
+  ) => {
     if (!signer) return alert("Connect wallet first");
 
     try {
@@ -146,7 +149,7 @@ export default function LaunchpadPage() {
       await tx.wait();
       alert("Transaction successful");
 
-      if (resetContribution) setContribution("");
+      if (resetInputKey) setContributions((prev) => ({ ...prev, [resetInputKey]: "" }));
       setPresales(await fetchPresales());
     } catch (err: any) {
       alert("Transaction failed: " + (err?.message || "Unknown error"));
@@ -156,7 +159,6 @@ export default function LaunchpadPage() {
     }
   };
 
-  /* ---------- UTILS ---------- */
   const formatNumber = (val: string) =>
     Number(val).toLocaleString(undefined, { maximumFractionDigits: 4 });
 
@@ -192,7 +194,15 @@ export default function LaunchpadPage() {
 
         {presales.map((p) => {
           const now = Math.floor(Date.now() / 1000);
-          const active = now >= p.startTime && now <= p.endTime && !p.finalized;
+          const status = p.finalized
+            ? "Finalized"
+            : now < p.startTime
+            ? "Upcoming"
+            : now > p.endTime
+            ? "Ended"
+            : "Active";
+
+          const active = status === "Active";
 
           return (
             <div key={p.address} className="presale-card">
@@ -203,27 +213,33 @@ export default function LaunchpadPage() {
               <p>Hard Cap: {formatNumber(p.hardCap)}</p>
               <p>Total Raised: {formatNumber(p.totalRaised)}</p>
               <p>Your Contribution: {formatNumber(p.userContribution)}</p>
+              <p>Status: {status}</p>
 
               {active && (
                 <>
                   <input
                     type="number"
                     placeholder="Amount in BNB"
-                    value={contribution}
-                    onChange={(e) => setContribution(e.target.value)}
+                    value={contributions[p.address] || ""}
+                    onChange={(e) =>
+                      setContributions((prev) => ({
+                        ...prev,
+                        [p.address]: e.target.value
+                      }))
+                    }
                     disabled={txPending}
                   />
                   <button
                     onClick={() =>
                       handleTx(
                         () =>
-                          new Contract(p.address, PRESALE_ABI, signer).contribute({
-                            value: ethers.parseEther(contribution)
+                          new Contract(p.address, PRESALE_ABI, signer!).contribute({
+                            value: ethers.parseEther(contributions[p.address] || "0")
                           }),
-                        true
+                        p.address
                       )
                     }
-                    disabled={txPending}
+                    disabled={txPending || !contributions[p.address]}
                   >
                     {txPending ? "Processing..." : "Contribute"}
                   </button>
@@ -234,7 +250,7 @@ export default function LaunchpadPage() {
                 <button
                   onClick={() =>
                     handleTx(() =>
-                      new Contract(p.address, PRESALE_ABI, signer).claim()
+                      new Contract(p.address, PRESALE_ABI, signer!).claim()
                     )
                   }
                   disabled={txPending}
