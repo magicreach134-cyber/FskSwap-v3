@@ -1,8 +1,22 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { ethers, Contract, Signer } from "ethers";
-import { stakingAddress, ABIS, MINIMAL_ERC20_ABI, DEFAULT_BNB_RPC } from "@/utils/constants";
+import {
+  Contract,
+  BrowserProvider,
+  JsonRpcProvider,
+  JsonRpcSigner,
+  parseUnits,
+  formatUnits,
+  MaxUint256,
+} from "ethers";
+
+import {
+  stakingAddress,
+  ABIS,
+  MINIMAL_ERC20_ABI,
+  DEFAULT_BNB_RPC,
+} from "@/utils/constants";
 
 export interface FarmView {
   pid: number;
@@ -13,21 +27,33 @@ export interface FarmView {
   pending: string;
 }
 
-const useFarm = (signer?: Signer | null, refreshInterval = 15000) => {
+const useFarm = (
+  signer: JsonRpcSigner | null,
+  refreshInterval = 15_000
+) => {
   const [staking, setStaking] = useState<Contract | null>(null);
   const [farms, setFarms] = useState<FarmView[]>([]);
   const [user, setUser] = useState<string>("");
-  const intervalRef = useRef<NodeJS.Timer | null>(null);
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* ---------- INIT STAKING CONTRACT ---------- */
   useEffect(() => {
     const init = async () => {
       try {
-        const provider = signer ?? new ethers.BrowserProvider(DEFAULT_BNB_RPC);
+        const provider =
+          signer?.provider ??
+          new JsonRpcProvider(DEFAULT_BNB_RPC);
+
         const address = signer ? await signer.getAddress() : "";
         setUser(address);
 
-        const contract = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer ?? provider);
+        const contract = new Contract(
+          stakingAddress,
+          ABIS.FSKSwapLPStaking,
+          signer ?? provider
+        );
+
         setStaking(contract);
       } catch (err) {
         console.error("Staking init error:", err);
@@ -43,44 +69,47 @@ const useFarm = (signer?: Signer | null, refreshInterval = 15000) => {
 
     try {
       const poolLength: bigint = await staking.poolLength();
-      const loaded: FarmView[] = [];
+      const result: FarmView[] = [];
 
       for (let pid = 0n; pid < poolLength; pid++) {
         const pool = await staking.poolInfo(pid);
         const pending: bigint = await staking.pendingReward(pid, user);
         const userInfo = await staking.userInfo(pid, user);
 
-        const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer);
+        const lp = new Contract(
+          pool.lpToken,
+          MINIMAL_ERC20_ABI,
+          staking.runner
+        );
+
         const [name, symbol, decimals] = await Promise.all([
           lp.name(),
           lp.symbol(),
-          lp.decimals()
+          lp.decimals(),
         ]);
 
-        loaded.push({
+        result.push({
           pid: Number(pid),
           lpToken: pool.lpToken,
           name,
           symbol,
-          staked: ethers.formatUnits(userInfo.amount, decimals),
-          pending: ethers.formatUnits(pending, decimals),
+          staked: formatUnits(userInfo.amount, decimals),
+          pending: formatUnits(pending, decimals),
         });
       }
 
-      setFarms(loaded);
+      setFarms(result);
     } catch (err) {
       console.error("Farm load error:", err);
     }
   };
 
-  /* ---------- AUTO REFRESH FARMS ---------- */
+  /* ---------- AUTO REFRESH ---------- */
   useEffect(() => {
     if (!staking || !user) return;
 
-    // initial load
     loadFarms().catch(console.error);
 
-    // auto refresh interval
     intervalRef.current = setInterval(() => {
       loadFarms().catch(console.error);
     }, refreshInterval);
@@ -90,60 +119,47 @@ const useFarm = (signer?: Signer | null, refreshInterval = 15000) => {
     };
   }, [staking, user, refreshInterval]);
 
-  /* ---------- FARM ACTIONS ---------- */
+  /* ---------- ACTIONS ---------- */
   const stake = async (pid: number, amount: string) => {
-    if (!staking || !user) throw new Error("Staking contract not ready");
+    if (!staking || !signer) throw new Error("Wallet not connected");
 
-    try {
-      const pool = await staking.poolInfo(pid);
-      const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer);
-      const decimals = await lp.decimals();
-      const parsed = ethers.parseUnits(amount, decimals);
+    const pool = await staking.poolInfo(pid);
+    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
+    const decimals = await lp.decimals();
 
-      const allowance: bigint = await lp.allowance(user, stakingAddress);
-      if (allowance < parsed) {
-        const approveTx = await lp.approve(stakingAddress, ethers.MaxUint256);
-        await approveTx.wait();
-      }
+    const parsed = parseUnits(amount, decimals);
 
-      const tx = await staking.deposit(pid, parsed);
+    const allowance: bigint = await lp.allowance(user, stakingAddress);
+    if (allowance < parsed) {
+      const tx = await lp.approve(stakingAddress, MaxUint256);
       await tx.wait();
-      await loadFarms();
-    } catch (err) {
-      console.error(`Stake error (pid: ${pid}):`, err);
-      throw err;
     }
+
+    const tx = await staking.deposit(pid, parsed);
+    await tx.wait();
+    await loadFarms();
   };
 
   const unstake = async (pid: number, amount: string) => {
-    if (!staking || !user) throw new Error("Staking contract not ready");
+    if (!staking || !signer) throw new Error("Wallet not connected");
 
-    try {
-      const pool = await staking.poolInfo(pid);
-      const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, staking.signer);
-      const decimals = await lp.decimals();
-      const parsed = ethers.parseUnits(amount, decimals);
+    const pool = await staking.poolInfo(pid);
+    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
+    const decimals = await lp.decimals();
 
-      const tx = await staking.withdraw(pid, parsed);
-      await tx.wait();
-      await loadFarms();
-    } catch (err) {
-      console.error(`Unstake error (pid: ${pid}):`, err);
-      throw err;
-    }
+    const parsed = parseUnits(amount, decimals);
+
+    const tx = await staking.withdraw(pid, parsed);
+    await tx.wait();
+    await loadFarms();
   };
 
   const claim = async (pid: number) => {
-    if (!staking || !user) throw new Error("Staking contract not ready");
+    if (!staking || !signer) throw new Error("Wallet not connected");
 
-    try {
-      const tx = await staking.claim(pid);
-      await tx.wait();
-      await loadFarms();
-    } catch (err) {
-      console.error(`Claim error (pid: ${pid}):`, err);
-      throw err;
-    }
+    const tx = await staking.claim(pid);
+    await tx.wait();
+    await loadFarms();
   };
 
   return {
