@@ -16,6 +16,7 @@ export default function FlashSwapPage() {
   const [estimatedProfit, setEstimatedProfit] = useState<string>("0");
   const [bestRouter, setBestRouter] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [estimating, setEstimating] = useState(false);
 
   const tokenBorrow = TOKENS.FSK;
   const tokenTarget = TOKENS.WBNB;
@@ -24,13 +25,16 @@ export default function FlashSwapPage() {
 
   /* ---------- Estimate Profit ---------- */
   const updateEstimation = useCallback(async () => {
-    if (!amount || Number(amount) <= 0 || !estimateBestRouter) {
+    if (!amount || Number(amount) <= 0) {
       setEstimatedProfit("0");
       setBestRouter("");
       return;
     }
 
+    if (!estimateBestRouter) return;
+
     try {
+      setEstimating(true);
       const result = await estimateBestRouter(amount, routers, path);
       setEstimatedProfit(result.maxProfit);
       setBestRouter(result.bestRouter);
@@ -38,24 +42,20 @@ export default function FlashSwapPage() {
       console.error("Profit estimation failed:", err);
       setEstimatedProfit("0");
       setBestRouter("");
+    } finally {
+      setEstimating(false);
     }
   }, [amount, estimateBestRouter]);
 
   useEffect(() => {
-    updateEstimation();
+    const timer = setTimeout(() => updateEstimation(), 400); // debounce
+    return () => clearTimeout(timer);
   }, [amount, updateEstimation]);
 
   /* ---------- Execute FlashSwap ---------- */
   const handleFlashSwap = async () => {
-    if (!amount || Number(amount) <= 0) {
-      alert("Invalid amount");
-      return;
-    }
-
-    if (Number(estimatedProfit) <= 0) {
-      alert("Trade not profitable");
-      return;
-    }
+    if (!amount || Number(amount) <= 0) return alert("Invalid amount");
+    if (Number(estimatedProfit) <= 0) return alert("Trade not profitable");
 
     try {
       setLoading(true);
@@ -63,6 +63,7 @@ export default function FlashSwapPage() {
       alert("FlashSwap executed successfully");
       setAmount("");
       setEstimatedProfit("0");
+      setBestRouter("");
     } catch (err: any) {
       console.error("FlashSwap failed:", err);
       alert(err?.message || "FlashSwap failed");
@@ -73,7 +74,6 @@ export default function FlashSwapPage() {
 
   return (
     <div className="flashswap-page">
-      {/* ---------- HEADER ---------- */}
       <header className="flashswap-header">
         <div className="logo">
           <img src="/logo.png" alt="FSKSwap" />
@@ -93,7 +93,6 @@ export default function FlashSwapPage() {
         </div>
       </header>
 
-      {/* ---------- MAIN ---------- */}
       <main className="flashswap-container">
         <h2>FlashSwap</h2>
 
@@ -113,18 +112,14 @@ export default function FlashSwapPage() {
 
           <p>
             Estimated Profit:&nbsp;
-            <strong
-              style={{
-                color: Number(estimatedProfit) > 0 ? "#00ff99" : "#ff4444",
-              }}
-            >
-              {estimatedProfit}
+            <strong style={{ color: Number(estimatedProfit) > 0 ? "#00ff99" : "#ff4444" }}>
+              {estimating ? "Estimating..." : estimatedProfit}
             </strong>
           </p>
 
           <button
             onClick={handleFlashSwap}
-            disabled={loading || Number(amount) <= 0}
+            disabled={loading || Number(amount) <= 0 || estimating}
           >
             {loading ? "Executing..." : "Execute FlashSwap"}
           </button>
