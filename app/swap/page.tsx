@@ -12,7 +12,7 @@ type TokenSymbol = keyof typeof TOKEN_ADDRESS_MAP;
 
 export default function SwapPage() {
   const { provider, signer, account } = useWallet();
-  const { getAmountOut, swapExactTokensForTokens, estimateGasSwap } = useSwap(provider, signer);
+  const { getAmountOut, swapExactTokensForTokens } = useSwap(provider, signer);
 
   const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
   const [toToken, setToToken] = useState(TOKEN_LIST[1]);
@@ -36,23 +36,13 @@ export default function SwapPage() {
         amountIn
       );
       setAmountOut(quoted ?? "");
-
-      if (signer && account) {
-        const gas = await estimateGasSwap({
-          amountIn,
-          fromToken: fromToken.symbol as TokenSymbol,
-          toToken: toToken.symbol as TokenSymbol,
-          to: account,
-          slippagePercent: slippage,
-        });
-        setEstimatedGas(Number(gas).toLocaleString());
-      }
+      setEstimatedGas("--"); // ethers v6 removed estimateGas on contract calls in many cases
     } catch (err) {
-      console.error("Quote or gas estimation error:", err);
+      console.error("Quote estimation error:", err);
       setAmountOut("");
       setEstimatedGas("--");
     }
-  }, [amountIn, fromToken, toToken, getAmountOut, estimateGasSwap, slippage, signer, account]);
+  }, [amountIn, fromToken, toToken, getAmountOut]);
 
   useEffect(() => {
     const timeout = setTimeout(() => estimateAmountOut(), 400);
