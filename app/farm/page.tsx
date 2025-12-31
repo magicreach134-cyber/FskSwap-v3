@@ -1,50 +1,65 @@
 "use client";
 
 import { useWallet } from "@/hooks/useWallet";
-import useFarm, { FarmView } from "@/hooks/useFarm";
+import useFarm from "@/hooks/useFarm";
 import { useEffect, useState } from "react";
+
+type LoadingState = {
+  stake: boolean;
+  unstake: boolean;
+  claim: boolean;
+};
 
 export default function FarmPage() {
   const { signer, account } = useWallet();
-  const { farms, stake, unstake, claim, reloadFarms } = useFarm(signer); // add reloadFarms
-  const [loadingMap, setLoadingMap] = useState<Record<number, { stake: boolean; unstake: boolean; claim: boolean }>>({});
+  const { farms, stake, unstake, claim, reloadFarms } = useFarm(signer);
+
+  const [loadingMap, setLoadingMap] = useState<Record<number, LoadingState>>({});
 
   useEffect(() => {
-    const map: Record<number, { stake: boolean; unstake: boolean; claim: boolean }> = {};
-    farms.forEach((farm) => {
-      if (!loadingMap[farm.pid]) {
-        map[farm.pid] = { stake: false, unstake: false, claim: false };
-      } else {
-        map[farm.pid] = loadingMap[farm.pid];
-      }
+    setLoadingMap((prev) => {
+      const next: Record<number, LoadingState> = {};
+      farms.forEach((farm) => {
+        next[farm.pid] = prev[farm.pid] ?? {
+          stake: false,
+          unstake: false,
+          claim: false,
+        };
+      });
+      return next;
     });
-    setLoadingMap(map);
   }, [farms]);
 
   const handleAction = async (
     pid: number,
     action: "stake" | "unstake" | "claim",
-    promptAmount?: boolean
+    promptAmount = false
   ) => {
     let amount: string | undefined;
+
     if (promptAmount) {
       amount = prompt(`Enter amount to ${action}:`);
       if (!amount) return;
     }
 
-    setLoadingMap((prev) => ({ ...prev, [pid]: { ...prev[pid], [action]: true } }));
+    setLoadingMap((prev) => ({
+      ...prev,
+      [pid]: { ...prev[pid], [action]: true },
+    }));
 
     try {
       if (action === "stake") await stake(pid, amount!);
       if (action === "unstake") await unstake(pid, amount!);
       if (action === "claim") await claim(pid);
 
-      // instant refresh of farm balances
-      if (reloadFarms) await reloadFarms();
+      await reloadFarms();
     } catch (err) {
       console.error(`${action} failed for pid ${pid}:`, err);
     } finally {
-      setLoadingMap((prev) => ({ ...prev, [pid]: { ...prev[pid], [action]: false } }));
+      setLoadingMap((prev) => ({
+        ...prev,
+        [pid]: { ...prev[pid], [action]: false },
+      }));
     }
   };
 
@@ -79,6 +94,7 @@ export default function FarmPage() {
                   >
                     {loadingMap[farm.pid]?.stake ? "Staking..." : "Stake"}
                   </button>
+
                   <button
                     className="bg-red-500 text-white px-2 py-1 rounded"
                     disabled={loadingMap[farm.pid]?.unstake}
@@ -86,6 +102,7 @@ export default function FarmPage() {
                   >
                     {loadingMap[farm.pid]?.unstake ? "Unstaking..." : "Unstake"}
                   </button>
+
                   <button
                     className="bg-blue-500 text-white px-2 py-1 rounded"
                     disabled={loadingMap[farm.pid]?.claim}
