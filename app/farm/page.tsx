@@ -12,19 +12,16 @@ type LoadingState = {
 
 export default function FarmPage() {
   const { signer, account } = useWallet();
-  const { farms, stake, unstake, claim, reloadFarms } = useFarm(signer);
+  const { farms, stake, unstake, claim } = useFarm(signer);
 
   const [loadingMap, setLoadingMap] = useState<Record<number, LoadingState>>({});
 
+  // Initialize loading map when farms update
   useEffect(() => {
     setLoadingMap((prev) => {
       const next: Record<number, LoadingState> = {};
       farms.forEach((farm) => {
-        next[farm.pid] = prev[farm.pid] ?? {
-          stake: false,
-          unstake: false,
-          claim: false,
-        };
+        next[farm.pid] = prev[farm.pid] ?? { stake: false, unstake: false, claim: false };
       });
       return next;
     });
@@ -51,10 +48,9 @@ export default function FarmPage() {
       if (action === "stake") await stake(pid, amount!);
       if (action === "unstake") await unstake(pid, amount!);
       if (action === "claim") await claim(pid);
-
-      await reloadFarms();
     } catch (err) {
       console.error(`${action} failed for pid ${pid}:`, err);
+      alert(`${action} failed: ${err?.message || err}`);
     } finally {
       setLoadingMap((prev) => ({
         ...prev,
