@@ -1,8 +1,15 @@
 "use client";
 
 import { useMemo } from "react";
-import { Contract, parseUnits, formatUnits, MaxUint256 } from "ethers";
-import { JsonRpcProvider, Web3Provider } from "@ethersproject/providers";
+import {
+  Contract,
+  BrowserProvider,
+  JsonRpcProvider,
+  JsonRpcSigner,
+  parseUnits,
+  formatUnits,
+  MaxUint256,
+} from "ethers";
 
 import {
   ABIS,
@@ -22,54 +29,56 @@ type SwapParams = {
   slippagePercent?: number;
 };
 
-// Fallback RPC for BNB Testnet
+// BNB Testnet RPC
 const DEFAULT_BNB_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545";
 
 export const useSwap = (
-  provider: Web3Provider | null,
-  signer: any | null
+  provider: BrowserProvider | null,
+  signer: JsonRpcSigner | null
 ) => {
-  /* ================= Router Instances ================= */
-
+  /* ================= READ ROUTER ================= */
   const routerRead = useMemo(() => {
-    const readProvider = provider ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
+    const readProvider =
+      provider ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
+
     return new Contract(routerAddress, ABIS.FSKRouter, readProvider);
   }, [provider]);
 
+  /* ================= WRITE ROUTER ================= */
   const routerWrite = useMemo(() => {
     if (!signer) return null;
     return new Contract(routerAddress, ABIS.FSKRouter, signer);
   }, [signer]);
 
-  /* ================= ERC20 Helpers ================= */
-
+  /* ================= ERC20 HELPERS ================= */
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
     try {
+      const readProvider =
+        provider ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
+
       const token = new Contract(
         tokenAddress,
         MINIMAL_ERC20_ABI,
-        provider ?? signer ?? new JsonRpcProvider(DEFAULT_BNB_RPC)
+        readProvider
       );
+
       return Number(await token.decimals());
     } catch {
       return 18;
     }
   };
 
-  /* ================= Path Finder ================= */
-
+  /* ================= PATH FINDER ================= */
   const findBestPath = async (
     fromToken: TokenKey,
     toToken: TokenKey,
     amountIn: string
   ): Promise<{ path: string[]; amountOut: bigint }> => {
-    if (!routerRead) throw new Error("Router not ready");
-
     const from = TOKENS[fromToken];
     const to = TOKENS[toToken];
 
     const directPath = [from, to];
-    const viaWBNB = [from, TOKENS.WBNB, to];
+    const wbnbPath = [from, TOKENS.WBNB, to];
 
     const decimalsIn = await getTokenDecimals(from);
     const amountInParsed = parseUnits(amountIn, decimalsIn);
@@ -77,25 +86,23 @@ export const useSwap = (
     let bestAmountOut = 0n;
     let bestPath = directPath;
 
-    /* ---- Direct Path ---- */
     try {
-      const amounts: bigint[] = await routerRead.getAmountsOut(
+      const out = await routerRead.getAmountsOut(
         amountInParsed,
         directPath
       );
-      bestAmountOut = amounts[amounts.length - 1];
+      bestAmountOut = out[out.length - 1];
     } catch {}
 
-    /* ---- WBNB Path ---- */
     try {
-      const amounts: bigint[] = await routerRead.getAmountsOut(
+      const out = await routerRead.getAmountsOut(
         amountInParsed,
-        viaWBNB
+        wbnbPath
       );
-      const out = amounts[amounts.length - 1];
-      if (out > bestAmountOut) {
-        bestAmountOut = out;
-        bestPath = viaWBNB;
+      const candidate = out[out.length - 1];
+      if (candidate > bestAmountOut) {
+        bestAmountOut = candidate;
+        bestPath = wbnbPath;
       }
     } catch {}
 
@@ -106,20 +113,23 @@ export const useSwap = (
     return { path: bestPath, amountOut: bestAmountOut };
   };
 
-  /* ================= Quote ================= */
-
+  /* ================= QUOTE ================= */
   const getAmountOut = async (
     fromToken: TokenKey,
     toToken: TokenKey,
     amountIn: string
   ): Promise<string> => {
-    const { amountOut } = await findBestPath(fromToken, toToken, amountIn);
+    const { amountOut } = await findBestPath(
+      fromToken,
+      toToken,
+      amountIn
+    );
+
     const decimalsOut = await getTokenDecimals(TOKENS[toToken]);
     return formatUnits(amountOut, decimalsOut);
   };
 
-  /* ================= Swap ================= */
-
+  /* ================= SWAP ================= */
   const swapExactTokensForTokens = async ({
     amountIn,
     fromToken,
@@ -140,12 +150,12 @@ export const useSwap = (
     const decimalsIn = await getTokenDecimals(path[0]);
     const amountInParsed = parseUnits(amountIn, decimalsIn);
 
-    /* ---- Slippage Protection (basis points) ---- */
+    /* ---- Slippage ---- */
     const slippageBps = BigInt(Math.floor(slippagePercent * 100));
     const amountOutMin =
       (amountOut * (10_000n - slippageBps)) / 10_000n;
 
-    /* ---- Token Approval ---- */
+    /* ---- Approval ---- */
     const tokenIn = new Contract(path[0], MINIMAL_ERC20_ABI, signer);
     const owner = await signer.getAddress();
 
@@ -155,13 +165,14 @@ export const useSwap = (
     );
 
     if (allowance < amountInParsed) {
-      const approveTx = await tokenIn.approve(routerAddress, MaxUint256);
-      await approveTx.wait();
+      const tx = await tokenIn.approve(routerAddress, MaxUint256);
+      await tx.wait();
     }
 
-    /* ---- Execute Swap ---- */
+    /* ---- Swap ---- */
     const deadline =
-      Math.floor(Date.now() / 1000) + APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
+      Math.floor(Date.now() / 1000) +
+      APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
 
     const tx = await routerWrite.swapExactTokensForTokens(
       amountInParsed,
@@ -171,7 +182,7 @@ export const useSwap = (
       deadline
     );
 
-    return await tx.wait();
+    return tx.wait();
   };
 
   return {
