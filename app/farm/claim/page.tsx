@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ethers, Signer } from "ethers";
+import { useState } from "react";
+import type { AbstractSigner } from "ethers";
 
 import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
@@ -11,8 +11,8 @@ import { useWallet } from "@/context/WalletContext";
 import "@/styles/staking.css";
 
 const FarmClaim = () => {
-  const { signer, account } = useWallet();
-  const { farms, claim } = useFarm(signer as Signer | null);
+  const { signer } = useWallet();
+  const { farms, claim } = useFarm(signer as AbstractSigner | null);
   const [loadingPid, setLoadingPid] = useState<number | null>(null);
 
   const handleClaim = async (pid: number) => {
@@ -27,7 +27,7 @@ const FarmClaim = () => {
       alert("Claimed rewards successfully");
     } catch (err: any) {
       console.error(err);
-      alert(err?.message || "Claim failed");
+      alert(err?.shortMessage || err?.message || "Claim failed");
     } finally {
       setLoadingPid(null);
     }
@@ -54,8 +54,7 @@ const FarmClaim = () => {
         {signer && farms.length === 0 && <p>No farms available.</p>}
 
         {farms.map((farm: FarmView) => {
-          // Parse pending reward safely
-          const claimable = parseFloat(farm.pending || "0");
+          const claimable = Number(farm.pending ?? "0");
 
           return (
             <div key={farm.pid} className="farm-card">
