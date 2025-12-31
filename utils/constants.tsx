@@ -1,9 +1,9 @@
 /* =========================================================
    FskSwap – Global Constants (Production-Grade)
-   Network: BNB Testnet (DEX-standard, Netlify-safe)
+   Network: BNB Testnet
 ========================================================= */
 
-import type { AddressLike } from "ethers";
+import { getAddress, type AddressLike } from "ethers";
 
 /* ================= RPC CONFIG ================= */
 
@@ -31,34 +31,22 @@ export const RPC_URL = RPC_URLS[ACTIVE_CHAIN_ID][0];
 /* ================= ENV VALIDATION ================= */
 
 function requireEnv(key: string): string {
-  if (typeof window === "undefined") {
-    // server-side (build / SSR)
-    const value = process.env[key];
-    if (!value) {
-      throw new Error(`[ENV ERROR] Missing environment variable: ${key}`);
-    }
-    return value;
-  }
-
-  // client-side
   const value = process.env[key];
-  if (!value) {
-    throw new Error(`[ENV ERROR] Missing public env variable: ${key}`);
-  }
+  if (!value) throw new Error(`[ENV ERROR] Missing environment variable: ${key}`);
   return value;
 }
 
 /* ================= CONTRACT ADDRESSES ================= */
 
 export const CONTRACTS = {
-  FSKMegaLocker: requireEnv("NEXT_PUBLIC_LOCKER_FACTORY_ADDRESS"),
-  FSKLaunchpadFactory: requireEnv("NEXT_PUBLIC_LAUNCHPAD_FACTORY_ADDRESS"),
-  FSKFeeCollector: requireEnv("NEXT_PUBLIC_FEECOLLECTOR_ADDRESS"),
-  FskFlashSwap: requireEnv("NEXT_PUBLIC_FLASHSWAP_ADDRESS"),
-  FskHelpFundPool: requireEnv("NEXT_PUBLIC_HELPFUND_ADDRESS"),
-  FSKRouterV3: requireEnv("NEXT_PUBLIC_ROUTER_ADDRESS"),
-  FskFactoryV2: requireEnv("NEXT_PUBLIC_FACTORY_ADDRESS"),
-  FSKSwapLPStaking: requireEnv("NEXT_PUBLIC_STAKING_ADDRESS"),
+  FSKMegaLocker: getAddress(requireEnv("NEXT_PUBLIC_LOCKER_FACTORY_ADDRESS")),
+  FSKLaunchpadFactory: getAddress(requireEnv("NEXT_PUBLIC_LAUNCHPAD_FACTORY_ADDRESS")),
+  FSKFeeCollector: getAddress(requireEnv("NEXT_PUBLIC_FEECOLLECTOR_ADDRESS")),
+  FskFlashSwap: getAddress(requireEnv("NEXT_PUBLIC_FLASHSWAP_ADDRESS")),
+  FskHelpFundPool: getAddress(requireEnv("NEXT_PUBLIC_HELPFUND_ADDRESS")),
+  FSKRouterV3: getAddress(requireEnv("NEXT_PUBLIC_ROUTER_ADDRESS")),
+  FskFactoryV2: getAddress(requireEnv("NEXT_PUBLIC_FACTORY_ADDRESS")),
+  FSKSwapLPStaking: getAddress(requireEnv("NEXT_PUBLIC_STAKING_ADDRESS")),
 } as const;
 
 /* ================= SHORTHANDS ================= */
@@ -75,13 +63,13 @@ export const helpFundPoolAddress = CONTRACTS.FskHelpFundPool;
 /* ================= TOKENS ================= */
 
 export const TOKENS = {
-  FSK: requireEnv("NEXT_PUBLIC_FSK_ADDRESS"),
-  FUSDT: requireEnv("NEXT_PUBLIC_FUSDT_ADDRESS"),
-  USDC: requireEnv("NEXT_PUBLIC_USDC_ADDRESS"),
-  WBNB: requireEnv("NEXT_PUBLIC_WBNB_ADDRESS"),
-  BTC: requireEnv("NEXT_PUBLIC_BTC_ADDRESS"),
-  ETH: requireEnv("NEXT_PUBLIC_ETH_ADDRESS"),
-  SOL: requireEnv("NEXT_PUBLIC_SOL_ADDRESS"),
+  FSK: getAddress(requireEnv("NEXT_PUBLIC_FSK_ADDRESS")),
+  FUSDT: getAddress(requireEnv("NEXT_PUBLIC_FUSDT_ADDRESS")),
+  USDC: getAddress(requireEnv("NEXT_PUBLIC_USDC_ADDRESS")),
+  WBNB: getAddress(requireEnv("NEXT_PUBLIC_WBNB_ADDRESS")),
+  BTC: getAddress(requireEnv("NEXT_PUBLIC_BTC_ADDRESS")),
+  ETH: getAddress(requireEnv("NEXT_PUBLIC_ETH_ADDRESS")),
+  SOL: getAddress(requireEnv("NEXT_PUBLIC_SOL_ADDRESS")),
 } as const;
 
 /* ================= TOKEN MAP ================= */
@@ -186,10 +174,20 @@ export const APP_CONSTANTS = {
   DEFAULT_SLIPPAGE_PERCENT: 0.5,
 } as const;
 
-/* ================= SPECIFIC EXPORTS ================= */
+/* ================= EXPORT SHORTHANDS ================= */
 
 export const DEFAULT_BNB_RPC = RPC_URL;
-
-// Explicit named exports (no ambiguity)
 export const FSKMegaLockerAddress = CONTRACTS.FSKMegaLocker;
 export const FSKMegaLockerABI = FSKMegaLocker_ABI;
+export const FSKLaunchpadFactoryAddress = CONTRACTS.FSKLaunchpadFactory;
+export const FSKLaunchpadFactoryABI = FSKLaunchpadFactory_ABI;
+export const FSKRouterAddress = CONTRACTS.FSKRouterV3;
+export const FSKRouterABI = FSKRouter_ABI;
+export const FSKSwapLPStakingAddress = CONTRACTS.FSKSwapLPStaking;
+export const FSKSwapLPStakingABI = FSKSwapLPStaking_ABI;
+export const FSKFeeCollectorAddress = CONTRACTS.FSKFeeCollector;
+export const FSKFeeCollectorABI = FSKFeeCollector_ABI;
+export const FlashSwapAddress = CONTRACTS.FskFlashSwap;
+export const FlashSwapABI = FskFlashSwap_ABI;
+export const HelpFundPoolAddress = CONTRACTS.FskHelpFundPool;
+export const HelpFundPoolABI = FSKHelpFundAllPool_ABI;
