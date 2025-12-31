@@ -12,7 +12,7 @@ type TokenSymbol = keyof typeof TOKEN_ADDRESS_MAP;
 
 export default function SwapPage() {
   const { provider, signer, account } = useWallet();
-  const { getAmountOut, swapExactTokensForTokens } = useSwap(provider, signer);
+  const { getAmountOut, swapExactTokensForTokens, estimateGasSwap } = useSwap(provider, signer);
 
   const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
   const [toToken, setToToken] = useState(TOKEN_LIST[1]);
@@ -20,11 +20,13 @@ export default function SwapPage() {
   const [amountOut, setAmountOut] = useState("");
   const [slippage, setSlippage] = useState<number>(APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT);
   const [loading, setLoading] = useState(false);
+  const [estimatedGas, setEstimatedGas] = useState<string>("--");
 
   /* ---------- Estimate output with debounce ---------- */
   const estimateAmountOut = useCallback(async () => {
     if (!amountIn || Number(amountIn) <= 0 || fromToken.address === toToken.address) {
       setAmountOut("");
+      setEstimatedGas("--");
       return;
     }
     try {
@@ -34,11 +36,23 @@ export default function SwapPage() {
         amountIn
       );
       setAmountOut(quoted ?? "");
+
+      if (signer && account) {
+        const gas = await estimateGasSwap({
+          amountIn,
+          fromToken: fromToken.symbol as TokenSymbol,
+          toToken: toToken.symbol as TokenSymbol,
+          to: account,
+          slippagePercent: slippage,
+        });
+        setEstimatedGas(Number(gas).toLocaleString());
+      }
     } catch (err) {
-      console.error("Quote error:", err);
+      console.error("Quote or gas estimation error:", err);
       setAmountOut("");
+      setEstimatedGas("--");
     }
-  }, [amountIn, fromToken.symbol, toToken.symbol, getAmountOut, toToken.address]);
+  }, [amountIn, fromToken, toToken, getAmountOut, estimateGasSwap, slippage, signer, account]);
 
   useEffect(() => {
     const timeout = setTimeout(() => estimateAmountOut(), 400);
@@ -50,22 +64,14 @@ export default function SwapPage() {
     setFromToken(toToken);
     setToToken(fromToken);
     setAmountOut("");
+    setEstimatedGas("--");
   };
 
   /* ---------- Execute swap ---------- */
   const handleSwap = async () => {
-    if (!signer || !account) {
-      alert("Connect wallet first");
-      return;
-    }
-    if (!amountIn || Number(amountIn) <= 0) {
-      alert("Enter a valid amount");
-      return;
-    }
-    if (fromToken.address === toToken.address) {
-      alert("Cannot swap the same token");
-      return;
-    }
+    if (!signer || !account) return alert("Connect wallet first");
+    if (!amountIn || Number(amountIn) <= 0) return alert("Enter a valid amount");
+    if (fromToken.address === toToken.address) return alert("Cannot swap the same token");
 
     try {
       setLoading(true);
@@ -79,6 +85,7 @@ export default function SwapPage() {
 
       setAmountIn("");
       setAmountOut("");
+      setEstimatedGas("--");
       alert("Swap successful");
     } catch (err: any) {
       console.error("Swap failed:", err);
@@ -90,6 +97,11 @@ export default function SwapPage() {
 
   /* ---------- Formatted Output ---------- */
   const formattedAmountOut = amountOut ? Number(amountOut).toFixed(6) : "--";
+
+  /* ---------- Slippage warning ---------- */
+  const slippageWarning =
+    slippage < 0.1 ? "Slippage too low, transaction may fail" :
+    slippage > 5 ? "Slippage too high, you may get a poor rate" : "";
 
   return (
     <div className="swap-page">
@@ -136,10 +148,16 @@ export default function SwapPage() {
             value={slippage}
             onChange={(e) => setSlippage(Number(e.target.value))}
           />
+          {slippageWarning && <p className="slippage-warning">{slippageWarning}</p>}
 
           <div className="swap-info">
             <span>Estimated Output</span>
             <strong>{formattedAmountOut}</strong>
+          </div>
+
+          <div className="swap-info">
+            <span>Estimated Gas</span>
+            <strong>{estimatedGas}</strong>
           </div>
 
           <button
