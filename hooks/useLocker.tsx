@@ -11,10 +11,10 @@ import {
 } from "ethers";
 
 import {
-  FSKMegaLocker,
+  FSKMegaLockerAddress,
   FSKMegaLockerABI,
   DEFAULT_BNB_RPC,
-} from "../utils/constants";
+} from "../utils/constants"; // ✅ Corrected import
 
 import ERC20ABI from "../utils/abis/ERC20.json";
 
@@ -48,7 +48,7 @@ const useLocker = (provider: ProviderLike) => {
           provider ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
 
         const contract = new Contract(
-          FSKMegaLocker,
+          FSKMegaLockerAddress, // ✅ Corrected here
           FSKMegaLockerABI,
           readProvider
         );
@@ -116,7 +116,7 @@ const useLocker = (provider: ProviderLike) => {
     const decimals = await getTokenDecimals(lock.token);
 
     const writeContract = new Contract(
-      FSKMegaLocker,
+      FSKMegaLockerAddress, // ✅ Corrected here
       FSKMegaLockerABI,
       signer
     );
@@ -166,7 +166,7 @@ const useLocker = (provider: ProviderLike) => {
 
   const claimVesting = async (signer: Signer, vestId: number) => {
     const writeContract = new Contract(
-      FSKMegaLocker,
+      FSKMegaLockerAddress, // ✅ Corrected here
       FSKMegaLockerABI,
       signer
     );
