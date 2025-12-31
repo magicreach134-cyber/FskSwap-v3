@@ -19,14 +19,16 @@ interface UseTokenListOptions {
 
 /**
  * useTokenList Hook
- * Provides full token list and optionally user balances
+ * Provides token list and optionally user balances
  */
 const useTokenList = ({ provider, userAddress }: UseTokenListOptions = {}) => {
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
 
   useEffect(() => {
+    let mounted = true;
+
     const loadTokens = async () => {
-      const tokenData: TokenInfo[] = [...TOKEN_LIST];
+      const tokenData: TokenInfo[] = TOKEN_LIST.map((t) => ({ ...t }));
 
       if (provider && userAddress) {
         for (let i = 0; i < tokenData.length; i++) {
@@ -45,10 +47,12 @@ const useTokenList = ({ provider, userAddress }: UseTokenListOptions = {}) => {
         }
       }
 
-      setTokens(tokenData);
+      if (mounted) setTokens(tokenData);
     };
 
     loadTokens();
+
+    return () => { mounted = false; };
   }, [provider, userAddress]);
 
   const getTokenBySymbol = (symbol: string) =>
