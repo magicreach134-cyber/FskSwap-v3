@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  ethers,
-  Contract,
-  Signer,
-  BrowserProvider,
-  JsonRpcProvider
-} from "ethers";
+import { Contract, BrowserProvider, JsonRpcSigner, parseUnits, formatUnits } from "ethers";
 
 import FskFlashSwapABI from "@/utils/abis/FskFlashSwap.json";
 import { CONTRACTS, DEFAULT_BNB_RPC } from "@/utils/constants";
@@ -19,27 +13,33 @@ export interface EstimateResult {
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-const useFlashSwap = (signer?: Signer | null) => {
+const useFlashSwap = (provider: BrowserProvider | null) => {
   const [contract, setContract] = useState<Contract | null>(null);
+  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
 
   /* ---------- INIT CONTRACT ---------- */
   useEffect(() => {
-    let provider;
+    const init = async () => {
+      try {
+        const readProvider = provider ?? new BrowserProvider(DEFAULT_BNB_RPC);
+        const signerInstance = provider?.getSigner() ?? null;
+        setSigner(signerInstance);
 
-    if (signer) {
-      provider = signer;
-    } else {
-      provider = new JsonRpcProvider(DEFAULT_BNB_RPC);
-    }
+        const instance = new Contract(
+          CONTRACTS.FskFlashSwap,
+          FskFlashSwapABI,
+          signerInstance ?? readProvider
+        );
 
-    const instance = new Contract(
-      CONTRACTS.FskFlashSwap,
-      FskFlashSwapABI,
-      provider
-    );
+        setContract(instance);
+      } catch (err) {
+        console.error("Failed to initialize flash swap contract:", err);
+        setContract(null);
+      }
+    };
 
-    setContract(instance);
-  }, [signer]);
+    init();
+  }, [provider]);
 
   /* ---------- ESTIMATE BEST ROUTER ---------- */
   const estimateBestRouter = async (
@@ -52,19 +52,15 @@ const useFlashSwap = (signer?: Signer | null) => {
     }
 
     try {
-      const parsedAmount = ethers.parseUnits(amount, 18);
+      const parsedAmount = parseUnits(amount, 18);
 
-      const result = await contract.estimateBestRouter(
-        parsedAmount,
-        routers,
-        path
-      );
+      const result = await contract.estimateBestRouter(parsedAmount, routers, path);
 
       const profitBN = result[0] as bigint;
       const bestRouter = result[1] as string;
 
       return {
-        maxProfit: ethers.formatUnits(profitBN, 18),
+        maxProfit: formatUnits(profitBN, 18),
         bestRouter
       };
     } catch (err) {
@@ -81,22 +77,11 @@ const useFlashSwap = (signer?: Signer | null) => {
     routers: string[],
     path: string[]
   ) => {
-    if (!contract || !signer) {
-      throw new Error("FlashSwap contract not connected to signer");
-    }
+    if (!contract || !signer) throw new Error("FlashSwap contract not connected to signer");
 
-    const parsedAmount = ethers.parseUnits(amount, 18);
+    const parsedAmount = parseUnits(amount, 18);
 
-    const tx = await contract
-      .connect(signer)
-      .executeFlashSwap(
-        tokenBorrow,
-        parsedAmount,
-        tokenTarget,
-        routers,
-        path
-      );
-
+    const tx = await contract.executeFlashSwap(tokenBorrow, parsedAmount, tokenTarget, routers, path);
     return await tx.wait();
   };
 
@@ -106,7 +91,7 @@ const useFlashSwap = (signer?: Signer | null) => {
 
     try {
       const price: bigint = await contract.getPrice(token);
-      return ethers.formatUnits(price, 18);
+      return formatUnits(price, 18);
     } catch (err) {
       console.error("getPrice failed:", err);
       return "0";
