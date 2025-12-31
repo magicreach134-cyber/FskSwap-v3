@@ -66,116 +66,15 @@ export default function LaunchpadPage() {
     initWallet();
   }, []);
 
-  /* ---------- LOAD PRESALES ---------- */
-  useEffect(() => {
-    if (!signer || !userAddress) return;
-
-    const loadPresales = async () => {
-      setLoading(true);
-      try {
-        const factory = new Contract(launchpadFactoryAddress, ABIS.FSKLaunchpadFactory, signer);
-        const addresses: string[] = await factory.getPresales();
-
-        const details = await Promise.all(
-          addresses.map(async (addr) => {
-            const c = new Contract(addr, PRESALE_ABI, signer);
-
-            const [
-              token,
-              softCap,
-              hardCap,
-              totalRaised,
-              startTime,
-              endTime,
-              userContribution,
-              finalized,
-              name,
-              symbol
-            ] = await Promise.all([
-              c.token(),
-              c.softCap(),
-              c.hardCap(),
-              c.totalRaised(),
-              c.startTime(),
-              c.endTime(),
-              c.contributions(userAddress),
-              c.finalized(),
-              c.name(),
-              c.symbol()
-            ]);
-
-            return {
-              address: addr,
-              token,
-              softCap: ethers.formatUnits(softCap, 18),
-              hardCap: ethers.formatUnits(hardCap, 18),
-              totalRaised: ethers.formatUnits(totalRaised, 18),
-              startTime: Number(startTime),
-              endTime: Number(endTime),
-              userContribution: ethers.formatUnits(userContribution, 18),
-              finalized,
-              name,
-              symbol
-            } as Presale;
-          })
-        );
-
-        setPresales(details);
-      } catch (err) {
-        console.error("Failed to load presales:", err);
-      }
-      setLoading(false);
-    };
-
-    loadPresales();
-  }, [signer, userAddress]);
-
-  /* ---------- CONTRIBUTE ---------- */
-  const handleContribute = async (p: Presale) => {
-    if (!signer) return alert("Connect wallet first");
-    if (!contribution || Number(contribution) <= 0) return alert("Enter a valid amount");
-
-    try {
-      setTxPending(true);
-      const presaleContract = new Contract(p.address, PRESALE_ABI, signer);
-      const tx = await presaleContract.contribute({ value: ethers.parseEther(contribution) });
-      await tx.wait();
-      alert("Contribution successful");
-      setContribution("");
-      // Refresh presales after contribution
-      signer && userAddress && loadPresalesForRefresh();
-    } catch (err: any) {
-      alert("Contribution failed: " + (err?.message || "Unknown error"));
-    }
-    setTxPending(false);
-  };
-
-  /* ---------- CLAIM TOKENS ---------- */
-  const handleClaim = async (p: Presale) => {
-    if (!signer) return alert("Connect wallet first");
-
-    try {
-      setTxPending(true);
-      const presaleContract = new Contract(p.address, PRESALE_ABI, signer);
-      const tx = await presaleContract.claim();
-      await tx.wait();
-      alert("Tokens claimed successfully");
-      signer && userAddress && loadPresalesForRefresh();
-    } catch (err: any) {
-      alert("Claim failed: " + (err?.message || "Unknown error"));
-    }
-    setTxPending(false);
-  };
-
-  /* ---------- REFRESH FUNCTION ---------- */
-  const loadPresalesForRefresh = async () => {
-    if (!signer || !userAddress) return;
+  /* ---------- FETCH PRESALES ---------- */
+  const fetchPresales = async (): Promise<Presale[]> => {
+    if (!signer || !userAddress) return [];
 
     try {
       const factory = new Contract(launchpadFactoryAddress, ABIS.FSKLaunchpadFactory, signer);
       const addresses: string[] = await factory.getPresales();
 
-      const details = await Promise.all(
+      const details: Presale[] = await Promise.all(
         addresses.map(async (addr) => {
           const c = new Contract(addr, PRESALE_ABI, signer);
 
@@ -215,18 +114,51 @@ export default function LaunchpadPage() {
             finalized,
             name,
             symbol
-          } as Presale;
+          };
         })
       );
 
-      setPresales(details);
+      return details;
     } catch (err) {
-      console.error("Failed to refresh presales:", err);
+      console.error("Failed to fetch presales:", err);
+      return [];
     }
   };
 
-  /* ---------- FORMAT UTILITY ---------- */
-  const formatNumber = (val: string) => Number(val).toLocaleString(undefined, { maximumFractionDigits: 4 });
+  /* ---------- INITIAL LOAD ---------- */
+  useEffect(() => {
+    if (!signer || !userAddress) return;
+    setLoading(true);
+
+    fetchPresales().then((data) => {
+      setPresales(data);
+      setLoading(false);
+    });
+  }, [signer, userAddress]);
+
+  /* ---------- TRANSACTION HANDLER ---------- */
+  const handleTx = async (contractCall: () => Promise<any>, resetContribution = false) => {
+    if (!signer) return alert("Connect wallet first");
+
+    try {
+      setTxPending(true);
+      const tx = await contractCall();
+      await tx.wait();
+      alert("Transaction successful");
+
+      if (resetContribution) setContribution("");
+      setPresales(await fetchPresales());
+    } catch (err: any) {
+      alert("Transaction failed: " + (err?.message || "Unknown error"));
+      console.error(err);
+    } finally {
+      setTxPending(false);
+    }
+  };
+
+  /* ---------- UTILS ---------- */
+  const formatNumber = (val: string) =>
+    Number(val).toLocaleString(undefined, { maximumFractionDigits: 4 });
 
   /* ---------- RENDER ---------- */
   return (
@@ -245,7 +177,11 @@ export default function LaunchpadPage() {
         </nav>
 
         <div className="header-right">
-          <WalletConnectButton />
+          <WalletConnectButton
+            setProvider={setProvider}
+            setSigner={setSigner}
+            setUserAddress={setUserAddress}
+          />
           <ThemeSwitch />
         </div>
       </header>
@@ -260,7 +196,9 @@ export default function LaunchpadPage() {
 
           return (
             <div key={p.address} className="presale-card">
-              <h3>{p.name} ({p.symbol})</h3>
+              <h3>
+                {p.name} ({p.symbol})
+              </h3>
               <p>Soft Cap: {formatNumber(p.softCap)}</p>
               <p>Hard Cap: {formatNumber(p.hardCap)}</p>
               <p>Total Raised: {formatNumber(p.totalRaised)}</p>
@@ -275,14 +213,32 @@ export default function LaunchpadPage() {
                     onChange={(e) => setContribution(e.target.value)}
                     disabled={txPending}
                   />
-                  <button onClick={() => handleContribute(p)} disabled={txPending}>
+                  <button
+                    onClick={() =>
+                      handleTx(
+                        () =>
+                          new Contract(p.address, PRESALE_ABI, signer).contribute({
+                            value: ethers.parseEther(contribution)
+                          }),
+                        true
+                      )
+                    }
+                    disabled={txPending}
+                  >
                     {txPending ? "Processing..." : "Contribute"}
                   </button>
                 </>
               )}
 
               {p.finalized && Number(p.userContribution) > 0 && (
-                <button onClick={() => handleClaim(p)} disabled={txPending}>
+                <button
+                  onClick={() =>
+                    handleTx(() =>
+                      new Contract(p.address, PRESALE_ABI, signer).claim()
+                    )
+                  }
+                  disabled={txPending}
+                >
                   {txPending ? "Processing..." : "Claim Tokens"}
                 </button>
               )}
