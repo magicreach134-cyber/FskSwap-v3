@@ -1,21 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useAccount } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
-import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import useFarm, { FarmView } from "@/hooks/useFarm";
-import { useWallet } from "@/context/WalletContext";
 
 import "@/styles/staking.css";
 
 const FarmClaim = () => {
-  const { provider, account } = useWallet();
-  const { farms, claim } = useFarm(provider);
+  const { isConnected } = useAccount();
+  const { farms, claim } = useFarm();
   const [loadingPid, setLoadingPid] = useState<number | null>(null);
 
   const handleClaim = async (pid: number) => {
-    if (!provider || !account) {
+    if (!isConnected) {
       alert("Connect wallet first");
       return;
     }
@@ -41,7 +41,7 @@ const FarmClaim = () => {
         </div>
 
         <div className="header-right">
-          <WalletConnectButton />
+          <ConnectButton />
           <ThemeSwitch />
         </div>
       </header>
@@ -49,8 +49,8 @@ const FarmClaim = () => {
       <main className="farm-container">
         <h2>Your Claimable Rewards</h2>
 
-        {!account && <p>Please connect your wallet to view farms.</p>}
-        {account && farms.length === 0 && <p>No farms available.</p>}
+        {!isConnected && <p>Please connect your wallet to view farms.</p>}
+        {isConnected && farms.length === 0 && <p>No farms available.</p>}
 
         {farms.map((farm: FarmView) => {
           const claimable = Number(farm.pending ?? "0");
