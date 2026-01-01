@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
-import WalletConnectButton from "../WalletConnectButton";
 import ThemeSwitch from "../ThemeSwitch";
 
 export default function DexHeader() {
@@ -30,7 +30,11 @@ export default function DexHeader() {
       </nav>
 
       <div className="dex-header-right">
-        <WalletConnectButton />
+        <ConnectButton
+          chainStatus="icon"
+          showBalance={false}
+          accountStatus="address"
+        />
         <ThemeSwitch />
       </div>
     </header>
