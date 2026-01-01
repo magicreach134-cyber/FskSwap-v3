@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useWallet } from "../context/WalletContext";
+import { useWallet } from "@/context/WalletContext";
 
 const WalletConnectButton = () => {
-  const { account, connectWallet, disconnectWallet } = useWallet();
-  const [shortAccount, setShortAccount] = useState<string>("");
+  const { account, connectWallet } = useWallet();
+  const [shortAccount, setShortAccount] = useState("");
 
   useEffect(() => {
     if (account) {
@@ -20,20 +20,11 @@ const WalletConnectButton = () => {
       {account ? (
         <div className="connected-account">
           <span>{shortAccount}</span>
-          <button onClick={disconnectWallet}>Disconnect</button>
         </div>
       ) : (
-        <div className="connect-buttons">
-          <button onClick={() => connectWallet("metamask")}>
-            MetaMask
-          </button>
-          <button onClick={() => connectWallet("trustwallet")}>
-            Trust Wallet
-          </button>
-          <button onClick={() => connectWallet("walletconnect")}>
-            WalletConnect
-          </button>
-        </div>
+        <button onClick={connectWallet}>
+          Connect Wallet
+        </button>
       )}
     </div>
   );
