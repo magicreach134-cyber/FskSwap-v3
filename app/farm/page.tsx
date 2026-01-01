@@ -3,6 +3,7 @@
 import { useWallet } from "@/hooks/useWallet";
 import useFarm from "@/hooks/useFarm";
 import { useEffect, useState } from "react";
+import Input from "@/components/forms/Input";
 
 type LoadingState = {
   stake: boolean;
@@ -10,13 +11,16 @@ type LoadingState = {
   claim: boolean;
 };
 
+type AmountMap = Record<number, { stake: string; unstake: string }>;
+
 export default function FarmPage() {
   const { signer, account } = useWallet();
   const { farms, stake, unstake, claim } = useFarm(signer);
 
   const [loadingMap, setLoadingMap] = useState<Record<number, LoadingState>>({});
+  const [amountMap, setAmountMap] = useState<AmountMap>({});
 
-  // Initialize loading map when farms update
+  // Initialize maps when farms update
   useEffect(() => {
     setLoadingMap((prev) => {
       const next: Record<number, LoadingState> = {};
@@ -25,18 +29,24 @@ export default function FarmPage() {
       });
       return next;
     });
+
+    setAmountMap((prev) => {
+      const next: AmountMap = {};
+      farms.forEach((farm) => {
+        next[farm.pid] = prev[farm.pid] ?? { stake: "", unstake: "" };
+      });
+      return next;
+    });
   }, [farms]);
 
-  const handleAction = async (
-    pid: number,
-    action: "stake" | "unstake" | "claim",
-    promptAmount = false
-  ) => {
+  const handleAction = async (pid: number, action: "stake" | "unstake" | "claim") => {
     let amount: string | undefined;
+    if (action === "stake") amount = amountMap[pid]?.stake;
+    if (action === "unstake") amount = amountMap[pid]?.unstake;
 
-    if (promptAmount) {
-      amount = prompt(`Enter amount to ${action}:`);
-      if (!amount) return;
+    if ((action === "stake" || action === "unstake") && (!amount || Number(amount) <= 0)) {
+      alert(`Enter a valid amount to ${action}`);
+      return;
     }
 
     setLoadingMap((prev) => ({
@@ -48,6 +58,16 @@ export default function FarmPage() {
       if (action === "stake") await stake(pid, amount!);
       if (action === "unstake") await unstake(pid, amount!);
       if (action === "claim") await claim(pid);
+
+      // Reset input on successful action
+      setAmountMap((prev) => ({
+        ...prev,
+        [pid]: {
+          ...prev[pid],
+          stake: action === "stake" ? "" : prev[pid].stake,
+          unstake: action === "unstake" ? "" : prev[pid].unstake,
+        },
+      }));
     } catch (err) {
       console.error(`${action} failed for pid ${pid}:`, err);
       alert(`${action} failed: ${err?.message || err}`);
@@ -82,25 +102,49 @@ export default function FarmPage() {
                 <td className="border px-2 py-1">{farm.name}</td>
                 <td className="border px-2 py-1">{farm.staked}</td>
                 <td className="border px-2 py-1">{farm.pending}</td>
-                <td className="border px-2 py-1 space-x-2">
-                  <button
-                    className="bg-green-500 text-white px-2 py-1 rounded"
-                    disabled={loadingMap[farm.pid]?.stake}
-                    onClick={() => handleAction(farm.pid, "stake", true)}
-                  >
-                    {loadingMap[farm.pid]?.stake ? "Staking..." : "Stake"}
-                  </button>
+                <td className="border px-2 py-1 space-y-2">
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Stake amount"
+                      value={amountMap[farm.pid]?.stake}
+                      onChange={(e) =>
+                        setAmountMap((prev) => ({
+                          ...prev,
+                          [farm.pid]: { ...prev[farm.pid], stake: e.target.value },
+                        }))
+                      }
+                    />
+                    <button
+                      className="bg-green-500 text-white px-2 py-1 rounded"
+                      disabled={loadingMap[farm.pid]?.stake}
+                      onClick={() => handleAction(farm.pid, "stake")}
+                    >
+                      {loadingMap[farm.pid]?.stake ? "Staking..." : "Stake"}
+                    </button>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Unstake amount"
+                      value={amountMap[farm.pid]?.unstake}
+                      onChange={(e) =>
+                        setAmountMap((prev) => ({
+                          ...prev,
+                          [farm.pid]: { ...prev[farm.pid], unstake: e.target.value },
+                        }))
+                      }
+                    />
+                    <button
+                      className="bg-red-500 text-white px-2 py-1 rounded"
+                      disabled={loadingMap[farm.pid]?.unstake}
+                      onClick={() => handleAction(farm.pid, "unstake")}
+                    >
+                      {loadingMap[farm.pid]?.unstake ? "Unstaking..." : "Unstake"}
+                    </button>
+                  </div>
 
                   <button
-                    className="bg-red-500 text-white px-2 py-1 rounded"
-                    disabled={loadingMap[farm.pid]?.unstake}
-                    onClick={() => handleAction(farm.pid, "unstake", true)}
-                  >
-                    {loadingMap[farm.pid]?.unstake ? "Unstaking..." : "Unstake"}
-                  </button>
-
-                  <button
-                    className="bg-blue-500 text-white px-2 py-1 rounded"
+                    className="bg-blue-500 text-white px-2 py-1 rounded w-full"
                     disabled={loadingMap[farm.pid]?.claim}
                     onClick={() => handleAction(farm.pid, "claim")}
                   >
