@@ -17,6 +17,7 @@ export const useWallet = (): WalletState => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     const eth = (window as any).ethereum;
     if (!eth) return;
 
@@ -38,8 +39,19 @@ export const useWallet = (): WalletState => {
 
     init();
 
-    const handleAccountsChanged = (accounts: string[]) => {
-      setAccount(accounts[0] || "");
+    const handleAccountsChanged = async (accounts: string[]) => {
+      if (!accounts.length) {
+        setSigner(null);
+        setAccount("");
+        return;
+      }
+
+      const browserProvider = new BrowserProvider(eth);
+      const signerInstance = await browserProvider.getSigner();
+
+      setProvider(browserProvider);
+      setSigner(signerInstance);
+      setAccount(accounts[0]);
     };
 
     const handleChainChanged = () => window.location.reload();
@@ -54,16 +66,21 @@ export const useWallet = (): WalletState => {
   }, []);
 
   const connectWallet = async () => {
-    if (!(window as any).ethereum) {
+    const eth = (window as any).ethereum;
+    if (!eth) {
       alert("Install MetaMask or compatible wallet");
       return;
     }
 
-    const accounts = await (window as any).ethereum.request({
-      method: "eth_requestAccounts",
-    });
+    await eth.request({ method: "eth_requestAccounts" });
 
-    setAccount(accounts[0] || "");
+    const browserProvider = new BrowserProvider(eth);
+    const signerInstance = await browserProvider.getSigner();
+    const address = await signerInstance.getAddress();
+
+    setProvider(browserProvider);
+    setSigner(signerInstance);
+    setAccount(address);
   };
 
   return {
