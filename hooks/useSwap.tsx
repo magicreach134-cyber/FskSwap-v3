@@ -3,12 +3,13 @@
 import { useMemo } from "react";
 import {
   Contract,
-  BrowserProvider,
   JsonRpcProvider,
+  BrowserProvider,
   parseUnits,
   formatUnits,
   MaxUint256,
 } from "ethers";
+import { useAccount, useWalletClient } from "wagmi";
 
 import {
   ABIS,
@@ -16,6 +17,7 @@ import {
   TOKENS,
   MINIMAL_ERC20_ABI,
   APP_CONSTANTS,
+  BNB_TESTNET_RPC,
 } from "@/utils/constants";
 
 type TokenKey = keyof typeof TOKENS;
@@ -28,12 +30,13 @@ type SwapParams = {
   slippagePercent?: number;
 };
 
-const DEFAULT_BNB_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545";
+export const useSwap = () => {
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
 
-export const useSwap = (provider: BrowserProvider | null) => {
   /* ================= READ PROVIDER ================= */
   const readProvider = useMemo(
-    () => new JsonRpcProvider(DEFAULT_BNB_RPC),
+    () => new JsonRpcProvider(BNB_TESTNET_RPC),
     []
   );
 
@@ -106,6 +109,15 @@ export const useSwap = (provider: BrowserProvider | null) => {
     return formatUnits(amountOut, decimalsOut);
   };
 
+  /* ================= WRITE SIGNER ================= */
+  const getSigner = async () => {
+    if (!walletClient || !isConnected)
+      throw new Error("Wallet not connected");
+
+    const provider = new BrowserProvider(walletClient.transport);
+    return provider.getSigner();
+  };
+
   /* ================= SWAP ================= */
   const swapExactTokensForTokens = async ({
     amountIn,
@@ -114,9 +126,7 @@ export const useSwap = (provider: BrowserProvider | null) => {
     to,
     slippagePercent = APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT,
   }: SwapParams) => {
-    if (!provider) throw new Error("Wallet not connected");
-
-    const signer = await provider.getSigner();
+    const signer = await getSigner();
     const router = new Contract(routerAddress, ABIS.FSKRouter, signer);
 
     const { path, amountOut } = await findBestPath(
@@ -128,7 +138,7 @@ export const useSwap = (provider: BrowserProvider | null) => {
     const decimalsIn = await getTokenDecimals(path[0]);
     const amountInParsed = parseUnits(amountIn, decimalsIn);
 
-    /* ---- Slippage ---- */
+    /* ---- Slippage (basis points) ---- */
     const slippageBps = BigInt(Math.floor(slippagePercent * 100));
     const amountOutMin =
       (amountOut * (10_000n - slippageBps)) / 10_000n;
@@ -140,9 +150,8 @@ export const useSwap = (provider: BrowserProvider | null) => {
       signer
     );
 
-    const owner = await signer.getAddress();
     const allowance: bigint = await tokenIn.allowance(
-      owner,
+      address,
       routerAddress
     );
 
@@ -167,7 +176,7 @@ export const useSwap = (provider: BrowserProvider | null) => {
       deadline
     );
 
-    return tx.wait();
+    await tx.wait();
   };
 
   return {
