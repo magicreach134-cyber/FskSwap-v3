@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { AbstractSigner } from "ethers";
 
 import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
@@ -11,12 +10,12 @@ import { useWallet } from "@/context/WalletContext";
 import "@/styles/staking.css";
 
 const FarmClaim = () => {
-  const { signer } = useWallet();
-  const { farms, claim } = useFarm(signer as AbstractSigner | null);
+  const { provider, account } = useWallet();
+  const { farms, claim } = useFarm(provider);
   const [loadingPid, setLoadingPid] = useState<number | null>(null);
 
   const handleClaim = async (pid: number) => {
-    if (!signer) {
+    if (!provider || !account) {
       alert("Connect wallet first");
       return;
     }
@@ -50,8 +49,8 @@ const FarmClaim = () => {
       <main className="farm-container">
         <h2>Your Claimable Rewards</h2>
 
-        {!signer && <p>Please connect your wallet to view farms.</p>}
-        {signer && farms.length === 0 && <p>No farms available.</p>}
+        {!account && <p>Please connect your wallet to view farms.</p>}
+        {account && farms.length === 0 && <p>No farms available.</p>}
 
         {farms.map((farm: FarmView) => {
           const claimable = Number(farm.pending ?? "0");
