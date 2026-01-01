@@ -1,97 +1,115 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useWallet } from "@/hooks/useWallet";
+import { useAccount, useWalletClient } from "wagmi";
+
 import { useSwap } from "@/hooks/useSwap";
 import TokenSelect from "@/components/TokenSelect";
 
-import { TOKEN_LIST, TOKEN_ADDRESS_MAP, APP_CONSTANTS } from "@/utils/constants";
+import {
+  TOKEN_LIST,
+  TOKEN_ADDRESS_MAP,
+  APP_CONSTANTS,
+} from "@/utils/constants";
+
 import "@/styles/swap.css";
 
 type TokenSymbol = keyof typeof TOKEN_ADDRESS_MAP;
 
 export default function SwapPage() {
-  const { provider, signer, account } = useWallet();
-  const { getAmountOut, swapExactTokensForTokens } = useSwap(provider, signer);
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+
+  const { getAmountOut, swapExactTokensForTokens } = useSwap();
 
   const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
   const [toToken, setToToken] = useState(TOKEN_LIST[1]);
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
-  const [slippage, setSlippage] = useState<number>(APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT);
+  const [slippage, setSlippage] = useState<number>(
+    APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT
+  );
   const [loading, setLoading] = useState(false);
-  const [estimatedGas, setEstimatedGas] = useState<string>("--");
 
-  /* ---------- Estimate output with debounce ---------- */
+  /* ---------- Estimate output (debounced) ---------- */
   const estimateAmountOut = useCallback(async () => {
-    if (!amountIn || Number(amountIn) <= 0 || fromToken.address === toToken.address) {
+    if (
+      !amountIn ||
+      Number(amountIn) <= 0 ||
+      fromToken.address === toToken.address
+    ) {
       setAmountOut("");
-      setEstimatedGas("--");
       return;
     }
+
     try {
       const quoted = await getAmountOut(
         fromToken.symbol as TokenSymbol,
         toToken.symbol as TokenSymbol,
         amountIn
       );
-      setAmountOut(quoted ?? "");
-      setEstimatedGas("--"); // ethers v6 removed estimateGas on contract calls in many cases
+      setAmountOut(quoted);
     } catch (err) {
-      console.error("Quote estimation error:", err);
+      console.error("Quote error:", err);
       setAmountOut("");
-      setEstimatedGas("--");
     }
   }, [amountIn, fromToken, toToken, getAmountOut]);
 
   useEffect(() => {
-    const timeout = setTimeout(() => estimateAmountOut(), 400);
-    return () => clearTimeout(timeout);
-  }, [amountIn, fromToken, toToken, estimateAmountOut]);
+    const t = setTimeout(estimateAmountOut, 400);
+    return () => clearTimeout(t);
+  }, [estimateAmountOut]);
 
-  /* ---------- Swap direction ---------- */
+  /* ---------- Switch tokens ---------- */
   const handleSwitchTokens = () => {
     setFromToken(toToken);
     setToToken(fromToken);
     setAmountOut("");
-    setEstimatedGas("--");
   };
 
   /* ---------- Execute swap ---------- */
   const handleSwap = async () => {
-    if (!signer || !account) return alert("Connect wallet first");
-    if (!amountIn || Number(amountIn) <= 0) return alert("Enter a valid amount");
-    if (fromToken.address === toToken.address) return alert("Cannot swap the same token");
+    if (!isConnected || !address || !walletClient) {
+      alert("Connect wallet first");
+      return;
+    }
+
+    if (!amountIn || Number(amountIn) <= 0) {
+      alert("Enter a valid amount");
+      return;
+    }
+
+    if (fromToken.address === toToken.address) {
+      alert("Cannot swap same token");
+      return;
+    }
 
     try {
       setLoading(true);
+
       await swapExactTokensForTokens({
+        walletClient,
         amountIn,
         fromToken: fromToken.symbol as TokenSymbol,
         toToken: toToken.symbol as TokenSymbol,
-        to: account,
+        to: address,
         slippagePercent: slippage,
       });
 
       setAmountIn("");
       setAmountOut("");
-      setEstimatedGas("--");
       alert("Swap successful");
     } catch (err: any) {
       console.error("Swap failed:", err);
-      alert(err?.reason || err?.message || "Swap failed");
+      alert(err?.shortMessage || err?.message || "Swap failed");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------- Formatted Output ---------- */
-  const formattedAmountOut = amountOut ? Number(amountOut).toFixed(6) : "--";
-
-  /* ---------- Slippage warning ---------- */
-  const slippageWarning =
-    slippage < 0.1 ? "Slippage too low, transaction may fail" :
-    slippage > 5 ? "Slippage too high, you may get a poor rate" : "";
+  const formattedAmountOut = amountOut
+    ? Number(amountOut).toFixed(6)
+    : "--";
 
   return (
     <div className="swap-page">
@@ -109,7 +127,6 @@ export default function SwapPage() {
               type="button"
               className="swap-switch-button"
               onClick={handleSwitchTokens}
-              title="Switch tokens"
             >
               ⇅
             </button>
@@ -138,23 +155,20 @@ export default function SwapPage() {
             value={slippage}
             onChange={(e) => setSlippage(Number(e.target.value))}
           />
-          {slippageWarning && <p className="slippage-warning">{slippageWarning}</p>}
 
           <div className="swap-info">
             <span>Estimated Output</span>
             <strong>{formattedAmountOut}</strong>
           </div>
 
-          <div className="swap-info">
-            <span>Estimated Gas</span>
-            <strong>{estimatedGas}</strong>
-          </div>
-
           <button
             className="swap-submit"
             onClick={handleSwap}
             disabled={
-              loading || !amountIn || Number(amountIn) <= 0 || fromToken.address === toToken.address
+              loading ||
+              !amountIn ||
+              Number(amountIn) <= 0 ||
+              fromToken.address === toToken.address
             }
           >
             {loading ? "Swapping..." : "Swap"}
