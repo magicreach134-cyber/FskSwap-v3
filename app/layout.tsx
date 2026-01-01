@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import "../styles/theme.css";
 import "../styles/swap-form.css";
@@ -8,7 +7,7 @@ import "../styles/staking.css";
 
 import DexHeader from "../components/layout/DexHeader";
 import { ThemeProvider } from "../context/ThemeContext";
-import { WalletProvider } from "../context/WalletContext";
+import { Web3Provider } from "../providers/Web3Provider";
 
 export const metadata: Metadata = {
   title: "FSKSwap",
@@ -24,13 +23,13 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <WalletProvider>
+          <Web3Provider>
             <DexHeader />
             <main className="dex-main">{children}</main>
             <footer className="dex-footer">
               <p>© {new Date().getFullYear()} FSKSwap. All rights reserved.</p>
             </footer>
-          </WalletProvider>
+          </Web3Provider>
         </ThemeProvider>
       </body>
     </html>
