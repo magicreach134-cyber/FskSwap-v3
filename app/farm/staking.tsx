@@ -1,75 +1,106 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ethers } from "ethers";
-import useFarm from "../../hooks/useFarm";
-import useWallet from "../../hooks/useWallet"; // Your wallet connection hook
+import { useState } from "react";
+import { useAccount, useWalletClient } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+
+import useFarm, { FarmView } from "@/hooks/useFarm";
+import ThemeSwitch from "@/components/ThemeSwitch";
+
+import "@/styles/staking.css";
 
 const StakingPage = () => {
-  const { signer, account } = useWallet();
-  const { getStakedBalance, getPendingRewards, stakeTokens, withdrawTokens, claimRewards } = useFarm(signer);
+  const { isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const { farms, stake, unstake, claim } = useFarm();
 
-  const [lpAmount, setLpAmount] = useState("0");
-  const [staked, setStaked] = useState("0");
-  const [pending, setPending] = useState("0");
-  const lpTokenAddress = "0xYourLpTokenAddress"; // Replace with your LP token
+  const [amount, setAmount] = useState("");
+  const [loadingPid, setLoadingPid] = useState<number | null>(null);
 
-  const refreshData = async () => {
-    if (!account) return;
-    const stakedBal = await getStakedBalance(account, lpTokenAddress);
-    const pendingRewards = await getPendingRewards(account);
-    setStaked(stakedBal);
-    setPending(pendingRewards);
+  const handleStake = async (pid: number) => {
+    if (!walletClient) return alert("Connect wallet");
+    setLoadingPid(pid);
+    try {
+      await stake(walletClient, pid, amount);
+      setAmount("");
+    } finally {
+      setLoadingPid(null);
+    }
   };
 
-  useEffect(() => {
-    refreshData();
-  }, [account]);
-
-  const handleStake = async () => {
-    await stakeTokens(lpTokenAddress, lpAmount);
-    setLpAmount("0");
-    await refreshData();
+  const handleUnstake = async (pid: number) => {
+    if (!walletClient) return alert("Connect wallet");
+    setLoadingPid(pid);
+    try {
+      await unstake(walletClient, pid, amount);
+      setAmount("");
+    } finally {
+      setLoadingPid(null);
+    }
   };
 
-  const handleWithdraw = async () => {
-    await withdrawTokens(lpTokenAddress, lpAmount);
-    setLpAmount("0");
-    await refreshData();
-  };
-
-  const handleClaim = async () => {
-    await claimRewards();
-    await refreshData();
+  const handleClaim = async (pid: number) => {
+    if (!walletClient) return alert("Connect wallet");
+    setLoadingPid(pid);
+    try {
+      await claim(walletClient, pid);
+    } finally {
+      setLoadingPid(null);
+    }
   };
 
   return (
-    <div className="max-w-xl mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Farm Staking</h2>
-      <p>Staked: {staked}</p>
-      <p>Pending Rewards: {pending}</p>
+    <div className="farm-page">
+      <header className="farm-header">
+        <h2>FSKSwap Staking</h2>
+        <div className="header-right">
+          <ConnectButton />
+          <ThemeSwitch />
+        </div>
+      </header>
 
-      <div className="mt-4">
-        <input
-          type="text"
-          value={lpAmount}
-          onChange={(e) => setLpAmount(e.target.value)}
-          placeholder="Amount"
-          className="border p-2 mr-2"
-        />
-        <button onClick={handleStake} className="bg-green-500 text-white p-2 rounded mr-2">
-          Stake
-        </button>
-        <button onClick={handleWithdraw} className="bg-red-500 text-white p-2 rounded">
-          Withdraw
-        </button>
-      </div>
+      {!isConnected && <p>Please connect your wallet.</p>}
 
-      <div className="mt-4">
-        <button onClick={handleClaim} className="bg-blue-500 text-white p-2 rounded">
-          Claim Rewards
-        </button>
-      </div>
+      {isConnected &&
+        farms.map((farm: FarmView) => (
+          <div key={farm.pid} className="farm-card">
+            <p>
+              <strong>{farm.name}</strong> ({farm.symbol})
+            </p>
+            <p>Staked: {farm.staked}</p>
+            <p>Pending Rewards: {farm.pending}</p>
+
+            <input
+              type="text"
+              placeholder="Amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+
+            <div className="farm-actions">
+              <button
+                onClick={() => handleStake(farm.pid)}
+                disabled={loadingPid === farm.pid}
+              >
+                Stake
+              </button>
+
+              <button
+                onClick={() => handleUnstake(farm.pid)}
+                disabled={loadingPid === farm.pid}
+              >
+                Unstake
+              </button>
+
+              <button
+                onClick={() => handleClaim(farm.pid)}
+                disabled={loadingPid === farm.pid}
+              >
+                Claim
+              </button>
+            </div>
+          </div>
+        ))}
     </div>
   );
 };
