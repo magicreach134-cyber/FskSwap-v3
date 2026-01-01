@@ -5,6 +5,7 @@ import { useAccount, useWalletClient } from "wagmi";
 
 import { useSwap } from "@/hooks/useSwap";
 import TokenSelect from "@/components/TokenSelect";
+import Input from "@/components/forms/Input";
 
 import {
   TOKEN_LIST,
@@ -138,21 +139,17 @@ export default function SwapPage() {
           </div>
 
           <label>Amount In</label>
-          <input
+          <Input
             type="number"
-            min="0"
-            step="any"
             placeholder="0.0"
             value={amountIn}
             onChange={(e) => setAmountIn(e.target.value)}
           />
 
           <label>Slippage (%)</label>
-          <input
+          <Input
             type="number"
-            min="0"
-            step="0.1"
-            value={slippage}
+            value={slippage.toString()}
             onChange={(e) => setSlippage(Number(e.target.value))}
           />
 
