@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Contract,
   JsonRpcProvider,
@@ -10,6 +10,7 @@ import {
   MaxUint256,
 } from "ethers";
 import { useAccount, useWalletClient } from "wagmi";
+import type { WalletClient } from "viem";
 
 import {
   stakingAddress,
@@ -27,7 +28,19 @@ export interface FarmView {
   pending: string;
 }
 
+/* ---------- READ PROVIDER ---------- */
 const readProvider = new JsonRpcProvider(BNB_TESTNET_RPC);
+
+/* ---------- VIEM → ETHERS SIGNER BRIDGE ---------- */
+async function walletClientToSigner(walletClient: WalletClient) {
+  const { transport } = walletClient;
+
+  const provider = new BrowserProvider(
+    transport as unknown as import("ethers").Eip1193Provider
+  );
+
+  return provider.getSigner();
+}
 
 const useFarm = (refreshInterval = 15_000) => {
   const { address, isConnected } = useAccount();
@@ -44,7 +57,7 @@ const useFarm = (refreshInterval = 15_000) => {
   );
 
   /* ---------- LOAD FARMS ---------- */
-  const loadFarms = async () => {
+  const loadFarms = useCallback(async () => {
     if (!address || !isConnected) return;
 
     try {
@@ -79,10 +92,10 @@ const useFarm = (refreshInterval = 15_000) => {
       }
 
       setFarms(results);
-    } catch (e) {
-      console.error("Farm load failed:", e);
+    } catch (err) {
+      console.error("Farm load failed:", err);
     }
-  };
+  }, [address, isConnected]);
 
   /* ---------- AUTO REFRESH ---------- */
   useEffect(() => {
@@ -94,25 +107,20 @@ const useFarm = (refreshInterval = 15_000) => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isConnected, refreshInterval]);
+  }, [isConnected, refreshInterval, loadFarms]);
 
-  /* ---------- WRITE HELPERS ---------- */
+  /* ---------- SIGNER ---------- */
   const getSigner = async () => {
     if (!walletClient) throw new Error("Wallet not connected");
-
-    const provider = new BrowserProvider(walletClient.transport);
-    return provider.getSigner();
+    return walletClientToSigner(walletClient);
   };
 
   /* ---------- ACTIONS ---------- */
   const stake = async (pid: number, amount: string) => {
-    const signer = await getSigner();
+    if (!address) throw new Error("No wallet");
 
-    const staking = new Contract(
-      stakingAddress,
-      ABIS.FSKSwapLPStaking,
-      signer
-    );
+    const signer = await getSigner();
+    const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
 
     const pool = await staking.poolInfo(pid);
     const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
@@ -133,13 +141,10 @@ const useFarm = (refreshInterval = 15_000) => {
   };
 
   const unstake = async (pid: number, amount: string) => {
-    const signer = await getSigner();
+    if (!address) throw new Error("No wallet");
 
-    const staking = new Contract(
-      stakingAddress,
-      ABIS.FSKSwapLPStaking,
-      signer
-    );
+    const signer = await getSigner();
+    const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
 
     const pool = await staking.poolInfo(pid);
     const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
@@ -154,12 +159,7 @@ const useFarm = (refreshInterval = 15_000) => {
 
   const claim = async (pid: number) => {
     const signer = await getSigner();
-
-    const staking = new Contract(
-      stakingAddress,
-      ABIS.FSKSwapLPStaking,
-      signer
-    );
+    const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
 
     const tx = await staking.claim(pid);
     await tx.wait();
