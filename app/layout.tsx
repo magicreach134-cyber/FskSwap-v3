@@ -7,7 +7,7 @@ import "../styles/staking.css";
 
 import DexHeader from "../components/layout/DexHeader";
 import { ThemeProvider } from "../context/ThemeContext";
-import { Web3Provider } from "../providers/Web3Provider";
+import Providers from "@/components/providers/RainbowKitProvider";
 
 export const metadata: Metadata = {
   title: "FSKSwap",
@@ -22,15 +22,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider>
-          <Web3Provider>
+        <Providers>
+          <ThemeProvider>
             <DexHeader />
             <main className="dex-main">{children}</main>
             <footer className="dex-footer">
               <p>© {new Date().getFullYear()} FSKSwap. All rights reserved.</p>
             </footer>
-          </Web3Provider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );
