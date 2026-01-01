@@ -1,21 +1,17 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { Contract, parseUnits, formatUnits, MaxUint256 } from "ethers";
 import {
-  Contract,
-  BrowserProvider,
-  JsonRpcProvider,
-  Signer,
-  parseUnits,
-  formatUnits,
-  MaxUint256,
-} from "ethers";
+  useAccount,
+  usePublicClient,
+  useWalletClient,
+} from "wagmi";
 
 import {
   stakingAddress,
   ABIS,
   MINIMAL_ERC20_ABI,
-  DEFAULT_BNB_RPC,
 } from "@/utils/constants";
 
 export interface FarmView {
@@ -27,47 +23,31 @@ export interface FarmView {
   pending: string;
 }
 
-type ProviderLike = BrowserProvider | JsonRpcProvider;
+const useFarm = (refreshInterval = 15_000) => {
+  const { address, isConnected } = useAccount();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
 
-const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => {
   const [stakingRead, setStakingRead] = useState<Contract | null>(null);
   const [farms, setFarms] = useState<FarmView[]>([]);
-  const [user, setUser] = useState<string>("");
-
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* ---------- INIT READ CONTRACT ---------- */
   useEffect(() => {
-    const init = async () => {
-      try {
-        const readProvider: ProviderLike =
-          provider ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
+    if (!publicClient) return;
 
-        const contract = new Contract(
-          stakingAddress,
-          ABIS.FSKSwapLPStaking,
-          readProvider
-        );
+    const contract = new Contract(
+      stakingAddress,
+      ABIS.FSKSwapLPStaking,
+      publicClient
+    );
 
-        let address = "";
-        if (provider) {
-          const signer = await provider.getSigner();
-          address = await signer.getAddress();
-        }
-
-        setUser(address);
-        setStakingRead(contract);
-      } catch (err) {
-        console.error("Staking init error:", err);
-      }
-    };
-
-    init();
-  }, [provider]);
+    setStakingRead(contract);
+  }, [publicClient]);
 
   /* ---------- LOAD FARMS ---------- */
   const loadFarms = async () => {
-    if (!stakingRead || !user) return;
+    if (!stakingRead || !address) return;
 
     try {
       const poolLength = Number(await stakingRead.poolLength());
@@ -75,13 +55,13 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
 
       for (let pid = 0; pid < poolLength; pid++) {
         const pool = await stakingRead.poolInfo(pid);
-        const pending: bigint = await stakingRead.pendingReward(pid, user);
-        const userInfo = await stakingRead.userInfo(pid, user);
+        const pending: bigint = await stakingRead.pendingReward(pid, address);
+        const userInfo = await stakingRead.userInfo(pid, address);
 
         const lp = new Contract(
           pool.lpToken,
           MINIMAL_ERC20_ABI,
-          stakingRead.runner
+          publicClient
         );
 
         const [name, symbol, decimals] = await Promise.all([
@@ -108,7 +88,7 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
 
   /* ---------- AUTO REFRESH ---------- */
   useEffect(() => {
-    if (!stakingRead || !user) return;
+    if (!stakingRead || !isConnected) return;
 
     loadFarms();
     intervalRef.current = setInterval(loadFarms, refreshInterval);
@@ -116,10 +96,13 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [stakingRead, user, refreshInterval]);
+  }, [stakingRead, isConnected, refreshInterval]);
 
   /* ---------- WRITE ACTIONS ---------- */
-  const stake = async (signer: Signer, pid: number, amount: string) => {
+  const stake = async (pid: number, amount: string) => {
+    if (!walletClient || !address) throw new Error("Wallet not connected");
+
+    const signer = walletClient;
     const staking = new Contract(
       stakingAddress,
       ABIS.FSKSwapLPStaking,
@@ -132,9 +115,7 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
     const decimals = await lp.decimals();
     const parsed = parseUnits(amount, decimals);
 
-    const owner = await signer.getAddress();
-    const allowance: bigint = await lp.allowance(owner, stakingAddress);
-
+    const allowance: bigint = await lp.allowance(address, stakingAddress);
     if (allowance < parsed) {
       const tx = await lp.approve(stakingAddress, MaxUint256);
       await tx.wait();
@@ -145,28 +126,32 @@ const useFarm = (provider: BrowserProvider | null, refreshInterval = 15_000) => 
     await loadFarms();
   };
 
-  const unstake = async (signer: Signer, pid: number, amount: string) => {
+  const unstake = async (pid: number, amount: string) => {
+    if (!walletClient) throw new Error("Wallet not connected");
+
     const staking = new Contract(
       stakingAddress,
       ABIS.FSKSwapLPStaking,
-      signer
+      walletClient
     );
 
     const pool = await staking.poolInfo(pid);
-    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
+    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, walletClient);
 
     const parsed = parseUnits(amount, await lp.decimals());
-
     const tx = await staking.withdraw(pid, parsed);
+
     await tx.wait();
     await loadFarms();
   };
 
-  const claim = async (signer: Signer, pid: number) => {
+  const claim = async (pid: number) => {
+    if (!walletClient) throw new Error("Wallet not connected");
+
     const staking = new Contract(
       stakingAddress,
       ABIS.FSKSwapLPStaking,
-      signer
+      walletClient
     );
 
     const tx = await staking.claim(pid);
