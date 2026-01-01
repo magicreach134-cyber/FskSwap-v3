@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Contract, parseUnits, formatUnits, MaxUint256 } from "ethers";
 import {
-  useAccount,
-  usePublicClient,
-  useWalletClient,
-} from "wagmi";
+  Contract,
+  JsonRpcProvider,
+  BrowserProvider,
+  parseUnits,
+  formatUnits,
+  MaxUint256,
+} from "ethers";
+import { useAccount, useWalletClient } from "wagmi";
 
 import {
   stakingAddress,
   ABIS,
   MINIMAL_ERC20_ABI,
+  BNB_TESTNET_RPC,
 } from "@/utils/constants";
 
 export interface FarmView {
@@ -23,45 +27,39 @@ export interface FarmView {
   pending: string;
 }
 
+const readProvider = new JsonRpcProvider(BNB_TESTNET_RPC);
+
 const useFarm = (refreshInterval = 15_000) => {
   const { address, isConnected } = useAccount();
-  const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
 
-  const [stakingRead, setStakingRead] = useState<Contract | null>(null);
   const [farms, setFarms] = useState<FarmView[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* ---------- INIT READ CONTRACT ---------- */
-  useEffect(() => {
-    if (!publicClient) return;
-
-    const contract = new Contract(
-      stakingAddress,
-      ABIS.FSKSwapLPStaking,
-      publicClient
-    );
-
-    setStakingRead(contract);
-  }, [publicClient]);
+  /* ---------- READ CONTRACT ---------- */
+  const stakingRead = new Contract(
+    stakingAddress,
+    ABIS.FSKSwapLPStaking,
+    readProvider
+  );
 
   /* ---------- LOAD FARMS ---------- */
   const loadFarms = async () => {
-    if (!stakingRead || !address) return;
+    if (!address || !isConnected) return;
 
     try {
-      const poolLength = Number(await stakingRead.poolLength());
-      const result: FarmView[] = [];
+      const poolLength: bigint = await stakingRead.poolLength();
+      const results: FarmView[] = [];
 
-      for (let pid = 0; pid < poolLength; pid++) {
+      for (let pid = 0; pid < Number(poolLength); pid++) {
         const pool = await stakingRead.poolInfo(pid);
+        const user = await stakingRead.userInfo(pid, address);
         const pending: bigint = await stakingRead.pendingReward(pid, address);
-        const userInfo = await stakingRead.userInfo(pid, address);
 
         const lp = new Contract(
           pool.lpToken,
           MINIMAL_ERC20_ABI,
-          publicClient
+          readProvider
         );
 
         const [name, symbol, decimals] = await Promise.all([
@@ -70,25 +68,25 @@ const useFarm = (refreshInterval = 15_000) => {
           lp.decimals(),
         ]);
 
-        result.push({
+        results.push({
           pid,
           lpToken: pool.lpToken,
           name,
           symbol,
-          staked: formatUnits(userInfo.amount, decimals),
+          staked: formatUnits(user.amount, decimals),
           pending: formatUnits(pending, decimals),
         });
       }
 
-      setFarms(result);
-    } catch (err) {
-      console.error("Farm load error:", err);
+      setFarms(results);
+    } catch (e) {
+      console.error("Farm load failed:", e);
     }
   };
 
   /* ---------- AUTO REFRESH ---------- */
   useEffect(() => {
-    if (!stakingRead || !isConnected) return;
+    if (!isConnected) return;
 
     loadFarms();
     intervalRef.current = setInterval(loadFarms, refreshInterval);
@@ -96,13 +94,20 @@ const useFarm = (refreshInterval = 15_000) => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [stakingRead, isConnected, refreshInterval]);
+  }, [isConnected, refreshInterval]);
 
-  /* ---------- WRITE ACTIONS ---------- */
+  /* ---------- WRITE HELPERS ---------- */
+  const getSigner = async () => {
+    if (!walletClient) throw new Error("Wallet not connected");
+
+    const provider = new BrowserProvider(walletClient.transport);
+    return provider.getSigner();
+  };
+
+  /* ---------- ACTIONS ---------- */
   const stake = async (pid: number, amount: string) => {
-    if (!walletClient || !address) throw new Error("Wallet not connected");
+    const signer = await getSigner();
 
-    const signer = walletClient;
     const staking = new Contract(
       stakingAddress,
       ABIS.FSKSwapLPStaking,
@@ -113,49 +118,52 @@ const useFarm = (refreshInterval = 15_000) => {
     const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
 
     const decimals = await lp.decimals();
-    const parsed = parseUnits(amount, decimals);
+    const value = parseUnits(amount, decimals);
 
     const allowance: bigint = await lp.allowance(address, stakingAddress);
-    if (allowance < parsed) {
-      const tx = await lp.approve(stakingAddress, MaxUint256);
-      await tx.wait();
+    if (allowance < value) {
+      const approveTx = await lp.approve(stakingAddress, MaxUint256);
+      await approveTx.wait();
     }
 
-    const tx = await staking.deposit(pid, parsed);
+    const tx = await staking.deposit(pid, value);
     await tx.wait();
+
     await loadFarms();
   };
 
   const unstake = async (pid: number, amount: string) => {
-    if (!walletClient) throw new Error("Wallet not connected");
+    const signer = await getSigner();
 
     const staking = new Contract(
       stakingAddress,
       ABIS.FSKSwapLPStaking,
-      walletClient
+      signer
     );
 
     const pool = await staking.poolInfo(pid);
-    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, walletClient);
+    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
 
-    const parsed = parseUnits(amount, await lp.decimals());
-    const tx = await staking.withdraw(pid, parsed);
+    const value = parseUnits(amount, await lp.decimals());
 
+    const tx = await staking.withdraw(pid, value);
     await tx.wait();
+
     await loadFarms();
   };
 
   const claim = async (pid: number) => {
-    if (!walletClient) throw new Error("Wallet not connected");
+    const signer = await getSigner();
 
     const staking = new Contract(
       stakingAddress,
       ABIS.FSKSwapLPStaking,
-      walletClient
+      signer
     );
 
     const tx = await staking.claim(pid);
     await tx.wait();
+
     await loadFarms();
   };
 
