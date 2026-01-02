@@ -1,20 +1,21 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useWallet } from "@/context/WalletContext";
-import WalletConnectButton from "@/components/WalletConnectButton";
+import { useAccount } from "wagmi";
+
 import ThemeSwitch from "@/components/ThemeSwitch";
 import useFlashSwap from "@/hooks/useFlashSwap";
 
 import { TOKENS, CONTRACTS, TOKEN_COLORS } from "@/utils/constants";
 
 export default function FlashSwapPage() {
-  const { signer } = useWallet();
-  const { estimateBestRouter, executeFlashSwap } = useFlashSwap(signer);
+  const { isConnected } = useAccount();
 
-  const [amount, setAmount] = useState<string>("");
-  const [estimatedProfit, setEstimatedProfit] = useState<string>("0");
-  const [bestRouter, setBestRouter] = useState<string>("");
+  const { estimateBestRouter, executeFlashSwap } = useFlashSwap();
+
+  const [amount, setAmount] = useState("");
+  const [estimatedProfit, setEstimatedProfit] = useState("0");
+  const [bestRouter, setBestRouter] = useState("");
   const [loading, setLoading] = useState(false);
   const [estimating, setEstimating] = useState(false);
 
@@ -25,13 +26,11 @@ export default function FlashSwapPage() {
 
   /* ---------- Estimate Profit ---------- */
   const updateEstimation = useCallback(async () => {
-    if (!amount || Number(amount) <= 0) {
+    if (!amount || Number(amount) <= 0 || !estimateBestRouter) {
       setEstimatedProfit("0");
       setBestRouter("");
       return;
     }
-
-    if (!estimateBestRouter) return;
 
     try {
       setEstimating(true);
@@ -45,21 +44,29 @@ export default function FlashSwapPage() {
     } finally {
       setEstimating(false);
     }
-  }, [amount, estimateBestRouter]);
+  }, [amount, estimateBestRouter, routers, path]);
 
   useEffect(() => {
-    const timer = setTimeout(() => updateEstimation(), 400); // debounce
+    const timer = setTimeout(updateEstimation, 400);
     return () => clearTimeout(timer);
-  }, [amount, updateEstimation]);
+  }, [updateEstimation]);
 
   /* ---------- Execute FlashSwap ---------- */
   const handleFlashSwap = async () => {
+    if (!isConnected) return alert("Connect wallet first");
     if (!amount || Number(amount) <= 0) return alert("Invalid amount");
     if (Number(estimatedProfit) <= 0) return alert("Trade not profitable");
 
     try {
       setLoading(true);
-      await executeFlashSwap(tokenBorrow, amount, tokenTarget, routers, path);
+      await executeFlashSwap(
+        tokenBorrow,
+        amount,
+        tokenTarget,
+        routers,
+        path
+      );
+
       alert("FlashSwap executed successfully");
       setAmount("");
       setEstimatedProfit("0");
@@ -88,7 +95,6 @@ export default function FlashSwapPage() {
         </nav>
 
         <div className="header-right">
-          <WalletConnectButton />
           <ThemeSwitch />
         </div>
       </header>
@@ -112,14 +118,19 @@ export default function FlashSwapPage() {
 
           <p>
             Estimated Profit:&nbsp;
-            <strong style={{ color: Number(estimatedProfit) > 0 ? "#00ff99" : "#ff4444" }}>
+            <strong
+              style={{
+                color:
+                  Number(estimatedProfit) > 0 ? "#00ff99" : "#ff4444",
+              }}
+            >
               {estimating ? "Estimating..." : estimatedProfit}
             </strong>
           </p>
 
           <button
             onClick={handleFlashSwap}
-            disabled={loading || Number(amount) <= 0 || estimating}
+            disabled={loading || estimating || Number(amount) <= 0}
           >
             {loading ? "Executing..." : "Execute FlashSwap"}
           </button>
