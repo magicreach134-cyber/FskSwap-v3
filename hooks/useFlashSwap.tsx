@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Contract,
-  BrowserProvider,
-  JsonRpcProvider,
-  parseUnits,
-  formatUnits,
-} from "ethers";
+import { Contract, BrowserProvider, JsonRpcProvider, parseUnits, formatUnits } from "ethers";
 
 import FskFlashSwapABI from "@/utils/abis/FskFlashSwap.json";
 import { CONTRACTS, DEFAULT_BNB_RPC } from "@/utils/constants";
@@ -26,16 +20,8 @@ const useFlashSwap = (provider: BrowserProvider | null) => {
   useEffect(() => {
     const init = async () => {
       try {
-        const readProvider = provider
-          ? provider
-          : new JsonRpcProvider(DEFAULT_BNB_RPC);
-
-        const instance = new Contract(
-          CONTRACTS.FskFlashSwap,
-          FskFlashSwapABI,
-          readProvider
-        );
-
+        const readProvider = provider ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
+        const instance = new Contract(CONTRACTS.FskFlashSwap, FskFlashSwapABI, readProvider);
         setContract(instance);
       } catch (err) {
         console.error("Failed to initialize flash swap contract:", err);
@@ -58,13 +44,7 @@ const useFlashSwap = (provider: BrowserProvider | null) => {
 
     try {
       const parsedAmount = parseUnits(amount, 18);
-
-      const [profit, router] = await contract.estimateBestRouter(
-        parsedAmount,
-        routers,
-        path
-      );
-
+      const [profit, router] = await contract.estimateBestRouter(parsedAmount, routers, path);
       return {
         maxProfit: formatUnits(profit as bigint, 18),
         bestRouter: router as string,
@@ -83,16 +63,18 @@ const useFlashSwap = (provider: BrowserProvider | null) => {
     routers: string[],
     path: string[]
   ) => {
-    if (!contract || !provider) {
-      throw new Error("Wallet not connected");
-    }
+    if (!contract || !provider) throw new Error("Wallet not connected");
 
     const signer = await provider.getSigner();
     const parsedAmount = parseUnits(amount, 18);
 
-    const tx = await contract
-      .connect(signer)
-      .executeFlashSwap(tokenBorrow, parsedAmount, tokenTarget, routers, path);
+    const tx = await contract.connect(signer).executeFlashSwap(
+      tokenBorrow,
+      parsedAmount,
+      tokenTarget,
+      routers,
+      path
+    );
 
     return await tx.wait();
   };
@@ -110,11 +92,7 @@ const useFlashSwap = (provider: BrowserProvider | null) => {
     }
   };
 
-  return {
-    estimateBestRouter,
-    executeFlashSwap,
-    getPrice,
-  };
+  return { estimateBestRouter, executeFlashSwap, getPrice };
 };
 
 export default useFlashSwap;
