@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useAccount, useWalletClient } from "wagmi";
+import { BrowserProvider, JsonRpcSigner } from "ethers";
 
 import { useSwap } from "@/hooks/useSwap";
 import TokenSelect from "@/components/TokenSelect";
@@ -18,11 +18,28 @@ import "@/styles/swap.css";
 type TokenSymbol = keyof typeof TOKEN_ADDRESS_MAP;
 
 export default function SwapPage() {
-  const { address, isConnected } = useAccount();
-  const { data: walletClient } = useWalletClient();
+  /* ---------- WALLET STATE ---------- */
+  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
+  const [account, setAccount] = useState<string>("");
 
-  const { getAmountOut, swapExactTokensForTokens } = useSwap();
+  useEffect(() => {
+    if (!window.ethereum) return;
 
+    (async () => {
+      try {
+        const provider = new BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        setSigner(signer);
+        setAccount(await signer.getAddress());
+      } catch (err) {
+        console.error("Wallet init failed:", err);
+      }
+    })();
+  }, []);
+
+  const { getAmountOut, swapExactTokensForTokens } = useSwap(signer);
+
+  /* ---------- SWAP STATE ---------- */
   const [fromToken, setFromToken] = useState(TOKEN_LIST[0]);
   const [toToken, setToToken] = useState(TOKEN_LIST[1]);
   const [amountIn, setAmountIn] = useState("");
@@ -32,13 +49,9 @@ export default function SwapPage() {
   );
   const [loading, setLoading] = useState(false);
 
-  /* ---------- Estimate output (debounced) ---------- */
+  /* ---------- ESTIMATE OUTPUT (DEBOUNCED) ---------- */
   const estimateAmountOut = useCallback(async () => {
-    if (
-      !amountIn ||
-      Number(amountIn) <= 0 ||
-      fromToken.address === toToken.address
-    ) {
+    if (!amountIn || Number(amountIn) <= 0 || fromToken.address === toToken.address) {
       setAmountOut("");
       return;
     }
@@ -57,20 +70,20 @@ export default function SwapPage() {
   }, [amountIn, fromToken, toToken, getAmountOut]);
 
   useEffect(() => {
-    const t = setTimeout(estimateAmountOut, 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(estimateAmountOut, 400);
+    return () => clearTimeout(timer);
   }, [estimateAmountOut]);
 
-  /* ---------- Switch tokens ---------- */
+  /* ---------- SWITCH TOKENS ---------- */
   const handleSwitchTokens = () => {
     setFromToken(toToken);
     setToToken(fromToken);
     setAmountOut("");
   };
 
-  /* ---------- Execute swap ---------- */
+  /* ---------- EXECUTE SWAP ---------- */
   const handleSwap = async () => {
-    if (!isConnected || !address || !walletClient) {
+    if (!signer || !account) {
       alert("Connect wallet first");
       return;
     }
@@ -89,11 +102,11 @@ export default function SwapPage() {
       setLoading(true);
 
       await swapExactTokensForTokens({
-        walletClient,
+        signer,
         amountIn,
         fromToken: fromToken.symbol as TokenSymbol,
         toToken: toToken.symbol as TokenSymbol,
-        to: address,
+        to: account,
         slippagePercent: slippage,
       });
 
@@ -102,16 +115,15 @@ export default function SwapPage() {
       alert("Swap successful");
     } catch (err: any) {
       console.error("Swap failed:", err);
-      alert(err?.shortMessage || err?.message || "Swap failed");
+      alert(err?.message || "Swap failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const formattedAmountOut = amountOut
-    ? Number(amountOut).toFixed(6)
-    : "--";
+  const formattedAmountOut = amountOut ? Number(amountOut).toFixed(6) : "--";
 
+  /* ---------- RENDER ---------- */
   return (
     <div className="swap-page">
       <main className="swap-container">
