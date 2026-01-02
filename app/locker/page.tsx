@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useWallet } from "@/hooks/useWallet";
+import { BrowserProvider, JsonRpcSigner } from "ethers";
 import useLocker, { Lock, Vesting } from "@/hooks/useLocker";
-import WalletConnectButton from "@/components/WalletConnectButton";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import "@/styles/locker.css";
 
@@ -13,7 +12,27 @@ type LoadingMap = {
 };
 
 const LockerPage = () => {
-  const { signer, account } = useWallet();
+  /* ---------- WALLET STATE ---------- */
+  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
+  const [account, setAccount] = useState<string>("");
+
+  /* ---------- INIT WALLET ---------- */
+  useEffect(() => {
+    if (!window.ethereum) return;
+
+    (async () => {
+      try {
+        const provider = new BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        setSigner(signer);
+        setAccount(await signer.getAddress());
+      } catch (err) {
+        console.error("Wallet init failed:", err);
+      }
+    })();
+  }, []);
+
+  /* ---------- LOCKER HOOK ---------- */
   const {
     lockerContract,
     getOwnerLocks,
@@ -27,16 +46,18 @@ const LockerPage = () => {
   const [locks, setLocks] = useState<(Lock & { id: number })[]>([]);
   const [vestings, setVestings] = useState<(Vesting & { id: number })[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingMap, setLoadingMap] = useState<LoadingMap>({ locks: {}, vestings: {} });
+  const [loadingMap, setLoadingMap] = useState<LoadingMap>({
+    locks: {},
+    vestings: {},
+  });
 
-  /* ---------------- Load Locks & Vestings ---------------- */
+  /* ---------- LOAD LOCKS & VESTINGS ---------- */
   useEffect(() => {
     if (!lockerContract || !account) return;
 
     const loadData = async () => {
       setLoading(true);
       try {
-        // Load Locks
         const lockIds = await getOwnerLocks(account);
         const lockData = await Promise.all(
           lockIds.map(async (id) => {
@@ -46,7 +67,6 @@ const LockerPage = () => {
         );
         setLocks(lockData.filter(Boolean) as (Lock & { id: number })[]);
 
-        // Load Vestings
         const vestIds = await getBeneficiaryVestings(account);
         const vestData = await Promise.all(
           vestIds.map(async (id) => {
@@ -56,7 +76,7 @@ const LockerPage = () => {
         );
         setVestings(vestData.filter(Boolean) as (Vesting & { id: number })[]);
       } catch (err) {
-        console.error("Failed to load locks/vestings:", err);
+        console.error("Failed to load locker data:", err);
       }
       setLoading(false);
     };
@@ -64,67 +84,69 @@ const LockerPage = () => {
     loadData();
   }, [lockerContract, account]);
 
-  /* ---------------- Actions ---------------- */
+  /* ---------- ACTIONS ---------- */
   const handleWithdrawLock = async (lockId: number, amount: string) => {
     if (!account) return;
 
-    setLoadingMap((prev) => ({
-      ...prev,
-      locks: { ...prev.locks, [lockId]: true },
+    setLoadingMap((p) => ({
+      ...p,
+      locks: { ...p.locks, [lockId]: true },
     }));
 
     try {
       await withdrawFromLock(lockId, account, amount);
-      const updatedLock = await getLock(lockId);
-      setLocks((prev) =>
-        prev.map((l) => (l.id === lockId && updatedLock ? { id: lockId, ...updatedLock } : l))
-      );
+      const updated = await getLock(lockId);
+      if (updated) {
+        setLocks((prev) =>
+          prev.map((l) => (l.id === lockId ? { id: lockId, ...updated } : l))
+        );
+      }
     } catch (err: any) {
       alert("Withdraw failed: " + (err?.message || err));
     }
 
-    setLoadingMap((prev) => ({
-      ...prev,
-      locks: { ...prev.locks, [lockId]: false },
+    setLoadingMap((p) => ({
+      ...p,
+      locks: { ...p.locks, [lockId]: false },
     }));
   };
 
   const handleClaimVesting = async (vestId: number) => {
-    setLoadingMap((prev) => ({
-      ...prev,
-      vestings: { ...prev.vestings, [vestId]: true },
+    setLoadingMap((p) => ({
+      ...p,
+      vestings: { ...p.vestings, [vestId]: true },
     }));
 
     try {
       await claimVesting(vestId);
-      const updatedVesting = await getVesting(vestId);
-      setVestings((prev) =>
-        prev.map((v) => (v.id === vestId && updatedVesting ? { id: vestId, ...updatedVesting } : v))
-      );
+      const updated = await getVesting(vestId);
+      if (updated) {
+        setVestings((prev) =>
+          prev.map((v) => (v.id === vestId ? { id: vestId, ...updated } : v))
+        );
+      }
     } catch (err: any) {
       alert("Claim failed: " + (err?.message || err));
     }
 
-    setLoadingMap((prev) => ({
-      ...prev,
-      vestings: { ...prev.vestings, [vestId]: false },
+    setLoadingMap((p) => ({
+      ...p,
+      vestings: { ...p.vestings, [vestId]: false },
     }));
   };
 
+  /* ---------- RENDER ---------- */
   return (
     <div className="locker-page">
       <header className="locker-header">
         <h1>FSKMegaLocker Dashboard</h1>
-        <div className="header-right" style={{ display: "flex", gap: "12px" }}>
-          <WalletConnectButton />
-          <ThemeSwitch />
-        </div>
+        <ThemeSwitch />
       </header>
 
       {loading && <p className="locker-loading">Loading data...</p>}
 
       <div className="locker-container">
-        {/* ---------------- LOCKS ---------------- */}
+        {/* -------- LOCKS -------- */}
         <section>
           <h2>Your Locks</h2>
           {locks.length === 0 && <p>No locks found.</p>}
@@ -132,7 +154,10 @@ const LockerPage = () => {
             <div key={l.id} className="lock-card">
               <p><strong>Token:</strong> {l.token}</p>
               <p><strong>Amount:</strong> {l.amount}</p>
-              <p><strong>Unlock:</strong> {new Date(l.unlockTime * 1000).toLocaleString()}</p>
+              <p>
+                <strong>Unlock:</strong>{" "}
+                {new Date(l.unlockTime * 1000).toLocaleString()}
+              </p>
               <p><strong>Withdrawn:</strong> {l.withdrawn ? "Yes" : "No"}</p>
               {!l.withdrawn && (
                 <button
@@ -146,7 +171,7 @@ const LockerPage = () => {
           ))}
         </section>
 
-        {/* ---------------- VESTINGS ---------------- */}
+        {/* -------- VESTINGS -------- */}
         <section>
           <h2>Your Vestings</h2>
           {vestings.length === 0 && <p>No vestings found.</p>}
@@ -155,9 +180,16 @@ const LockerPage = () => {
               <p><strong>Token:</strong> {v.token}</p>
               <p><strong>Total:</strong> {v.amount}</p>
               <p><strong>Claimed:</strong> {v.claimed}</p>
-              <p><strong>Start:</strong> {new Date(v.start * 1000).toLocaleString()}</p>
+              <p>
+                <strong>Start:</strong>{" "}
+                {new Date(v.start * 1000).toLocaleString()}
+              </p>
               <p><strong>Duration:</strong> {v.duration} seconds</p>
-              <span className={`vesting-status ${v.claimed === v.amount ? "claimed" : "pending"}`}>
+              <span
+                className={`vesting-status ${
+                  v.claimed === v.amount ? "claimed" : "pending"
+                }`}
+              >
                 {v.claimed === v.amount ? "Claimed" : "Pending"}
               </span>
               {v.claimed !== v.amount && (
