@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+
 import "../styles/theme.css";
 import "../styles/swap-form.css";
 import "../styles/launchpad.css";
@@ -6,8 +7,6 @@ import "../styles/flashswap.css";
 import "../styles/staking.css";
 
 import DexHeader from "../components/layout/DexHeader";
-import { ThemeProvider } from "../context/ThemeContext";
-import Providers from "@/components/providers/RainbowKitProvider";
 
 export const metadata: Metadata = {
   title: "FSKSwap",
@@ -22,15 +21,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <Providers>
-          <ThemeProvider>
-            <DexHeader />
-            <main className="dex-main">{children}</main>
-            <footer className="dex-footer">
-              <p>© {new Date().getFullYear()} FSKSwap. All rights reserved.</p>
-            </footer>
-          </ThemeProvider>
-        </Providers>
+        <DexHeader />
+        <main className="dex-main">{children}</main>
+        <footer className="dex-footer">
+          <p>© {new Date().getFullYear()} FSKSwap. All rights reserved.</p>
+        </footer>
       </body>
     </html>
   );
