@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useAccount } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useEffect, useState } from "react";
+import { BrowserProvider, JsonRpcSigner } from "ethers";
 
 import ThemeSwitch from "@/components/ThemeSwitch";
 import useFarm, { FarmView } from "@/hooks/useFarm";
@@ -10,12 +9,40 @@ import useFarm, { FarmView } from "@/hooks/useFarm";
 import "@/styles/staking.css";
 
 const FarmClaim = () => {
-  const { isConnected } = useAccount();
-  const { farms, claim } = useFarm();
+  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
+  const [account, setAccount] = useState<string>("");
+  const { farms, claim, loadFarms } = useFarm(signer);
   const [loadingPid, setLoadingPid] = useState<number | null>(null);
+  const [loadingFarms, setLoadingFarms] = useState(false);
 
+  /* ---------- WALLET INIT ---------- */
+  useEffect(() => {
+    if (!window.ethereum) return;
+
+    (async () => {
+      try {
+        const provider = new BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        setSigner(signer);
+        setAccount(await signer.getAddress());
+      } catch (err) {
+        console.error("Wallet initialization failed:", err);
+      }
+    })();
+  }, []);
+
+  /* ---------- LOAD FARMS ---------- */
+  useEffect(() => {
+    if (!signer || !account) return;
+    setLoadingFarms(true);
+    loadFarms()
+      .catch(console.error)
+      .finally(() => setLoadingFarms(false));
+  }, [signer, account, loadFarms]);
+
+  /* ---------- CLAIM ---------- */
   const handleClaim = async (pid: number) => {
-    if (!isConnected) {
+    if (!signer || !account) {
       alert("Connect wallet first");
       return;
     }
@@ -24,9 +51,10 @@ const FarmClaim = () => {
     try {
       await claim(pid);
       alert("Claimed rewards successfully");
+      await loadFarms(); // refresh farm data
     } catch (err: any) {
       console.error(err);
-      alert(err?.shortMessage || err?.message || "Claim failed");
+      alert(err?.message || "Claim failed");
     } finally {
       setLoadingPid(null);
     }
@@ -41,7 +69,17 @@ const FarmClaim = () => {
         </div>
 
         <div className="header-right">
-          <ConnectButton />
+          <button
+            onClick={async () => {
+              if (!window.ethereum) return alert("No wallet found");
+              const provider = new BrowserProvider(window.ethereum);
+              const signer = await provider.getSigner();
+              setSigner(signer);
+              setAccount(await signer.getAddress());
+            }}
+          >
+            {account ? account.slice(0, 6) + "..." + account.slice(-4) : "Connect Wallet"}
+          </button>
           <ThemeSwitch />
         </div>
       </header>
@@ -49,10 +87,11 @@ const FarmClaim = () => {
       <main className="farm-container">
         <h2>Your Claimable Rewards</h2>
 
-        {!isConnected && <p>Please connect your wallet to view farms.</p>}
-        {isConnected && farms.length === 0 && <p>No farms available.</p>}
+        {!account && <p>Please connect your wallet to view farms.</p>}
+        {account && loadingFarms && <p>Loading farms...</p>}
+        {account && !loadingFarms && farms.length === 0 && <p>No farms available.</p>}
 
-        {farms.map((farm: FarmView) => {
+        {account && farms.map((farm: FarmView) => {
           const claimable = Number(farm.pending ?? "0");
 
           return (
