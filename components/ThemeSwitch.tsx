@@ -1,30 +1,30 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
-import { ThemeContext } from "../context/ThemeContext";
+import { useEffect, useState } from "react";
 
 const ThemeSwitch = () => {
-  const { theme, toggleTheme } = useContext(ThemeContext);
-  const [mounted, setMounted] = useState(false);
+  const [dark, setDark] = useState(false);
 
-  /**
-   * Prevent hydration mismatch between server and client
-   */
   useEffect(() => {
-    setMounted(true);
+    const isDark = document.documentElement.classList.contains("dark");
+    setDark(isDark);
   }, []);
 
-  if (!mounted) return null;
+  const toggleTheme = () => {
+    const root = document.documentElement;
+    if (dark) {
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    } else {
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    }
+    setDark(!dark);
+  };
 
   return (
-    <button
-      type="button"
-      className={`theme-switch ${theme}`}
-      onClick={toggleTheme}
-      aria-label="Toggle theme"
-      title="Toggle Light/Dark Mode"
-    >
-      {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+    <button onClick={toggleTheme} className="theme-switch">
+      {dark ? "Light Mode" : "Dark Mode"}
     </button>
   );
 };
