@@ -69,11 +69,7 @@ const useFarm = (refreshInterval = 15_000) => {
         const user = await stakingRead.userInfo(pid, address);
         const pending: bigint = await stakingRead.pendingReward(pid, address);
 
-        const lp = new Contract(
-          pool.lpToken,
-          MINIMAL_ERC20_ABI,
-          readProvider
-        );
+        const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, readProvider);
 
         const [name, symbol, decimals] = await Promise.all([
           lp.name(),
@@ -117,7 +113,7 @@ const useFarm = (refreshInterval = 15_000) => {
 
   /* ---------- ACTIONS ---------- */
   const stake = async (pid: number, amount: string) => {
-    if (!address) throw new Error("No wallet");
+    if (!address) throw new Error("No wallet connected");
 
     const signer = await getSigner();
     const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
@@ -141,7 +137,7 @@ const useFarm = (refreshInterval = 15_000) => {
   };
 
   const unstake = async (pid: number, amount: string) => {
-    if (!address) throw new Error("No wallet");
+    if (!address) throw new Error("No wallet connected");
 
     const signer = await getSigner();
     const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
@@ -150,7 +146,6 @@ const useFarm = (refreshInterval = 15_000) => {
     const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
 
     const value = parseUnits(amount, await lp.decimals());
-
     const tx = await staking.withdraw(pid, value);
     await tx.wait();
 
@@ -172,6 +167,7 @@ const useFarm = (refreshInterval = 15_000) => {
     stake,
     unstake,
     claim,
+    loadFarms, // <-- exported for page use
   };
 };
 
