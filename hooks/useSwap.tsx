@@ -35,10 +35,7 @@ export const useSwap = () => {
   const { data: walletClient } = useWalletClient();
 
   /* ================= READ PROVIDER ================= */
-  const readProvider = useMemo(
-    () => new JsonRpcProvider(BNB_TESTNET_RPC),
-    []
-  );
+  const readProvider = useMemo(() => new JsonRpcProvider(BNB_TESTNET_RPC), []);
 
   /* ================= READ ROUTER ================= */
   const routerRead = useMemo(() => {
@@ -48,11 +45,7 @@ export const useSwap = () => {
   /* ================= ERC20 HELPERS ================= */
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
     try {
-      const token = new Contract(
-        tokenAddress,
-        MINIMAL_ERC20_ABI,
-        readProvider
-      );
+      const token = new Contract(tokenAddress, MINIMAL_ERC20_ABI, readProvider);
       return Number(await token.decimals());
     } catch {
       return 18;
@@ -111,9 +104,7 @@ export const useSwap = () => {
 
   /* ================= WRITE SIGNER ================= */
   const getSigner = async () => {
-    if (!walletClient || !isConnected)
-      throw new Error("Wallet not connected");
-
+    if (!walletClient || !isConnected) throw new Error("Wallet not connected");
     const provider = new BrowserProvider(walletClient.transport);
     return provider.getSigner();
   };
@@ -126,48 +117,30 @@ export const useSwap = () => {
     to,
     slippagePercent = APP_CONSTANTS.DEFAULT_SLIPPAGE_PERCENT,
   }: SwapParams) => {
+    if (!address) throw new Error("No wallet connected");
+
     const signer = await getSigner();
     const router = new Contract(routerAddress, ABIS.FSKRouter, signer);
 
-    const { path, amountOut } = await findBestPath(
-      fromToken,
-      toToken,
-      amountIn
-    );
+    const { path, amountOut } = await findBestPath(fromToken, toToken, amountIn);
 
     const decimalsIn = await getTokenDecimals(path[0]);
     const amountInParsed = parseUnits(amountIn, decimalsIn);
 
-    /* ---- Slippage (basis points) ---- */
+    // Slippage
     const slippageBps = BigInt(Math.floor(slippagePercent * 100));
-    const amountOutMin =
-      (amountOut * (10_000n - slippageBps)) / 10_000n;
+    const amountOutMin = (amountOut * (10_000n - slippageBps)) / 10_000n;
 
-    /* ---- Approval ---- */
-    const tokenIn = new Contract(
-      path[0],
-      MINIMAL_ERC20_ABI,
-      signer
-    );
-
-    const allowance: bigint = await tokenIn.allowance(
-      address,
-      routerAddress
-    );
-
+    // Approval
+    const tokenIn = new Contract(path[0], MINIMAL_ERC20_ABI, signer);
+    const allowance: bigint = await tokenIn.allowance(address, routerAddress);
     if (allowance < amountInParsed) {
-      const tx = await tokenIn.approve(
-        routerAddress,
-        MaxUint256
-      );
+      const tx = await tokenIn.approve(routerAddress, MaxUint256);
       await tx.wait();
     }
 
-    /* ---- Swap ---- */
-    const deadline =
-      Math.floor(Date.now() / 1000) +
-      APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
-
+    // Swap
+    const deadline = Math.floor(Date.now() / 1000) + APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
     const tx = await router.swapExactTokensForTokens(
       amountInParsed,
       amountOutMin,
@@ -175,7 +148,6 @@ export const useSwap = () => {
       to,
       deadline
     );
-
     await tx.wait();
   };
 
