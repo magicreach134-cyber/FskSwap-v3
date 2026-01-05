@@ -2,10 +2,8 @@
    FskSwap – Global Constants (Production-Grade)
    Network: BNB Testnet
 ========================================================= */
-// Backward compatibility for existing hooks
-export const BNB_TESTNET_RPC = DEFAULT_BNB_RPC;
 
-import { getAddress, type AddressLike } from "ethers";
+import { getAddress } from "ethers";
 
 /* ================= RPC CONFIG ================= */
 
@@ -28,27 +26,33 @@ export const RPC_URLS: Record<ChainId, string[]> = {
 };
 
 export const ACTIVE_CHAIN_ID = ChainId.BSC_TESTNET;
-export const RPC_URL = RPC_URLS[ACTIVE_CHAIN_ID][0];
+export const DEFAULT_BNB_RPC = RPC_URLS[ACTIVE_CHAIN_ID][0];
+export const BNB_TESTNET_RPC = DEFAULT_BNB_RPC;
 
-/* ================= ENV VALIDATION ================= */
-
-function requireEnv(key: string): string {
+/* ================= ENV SAFE ACCESS ================= */
+/**
+ * Does NOT throw during build.
+ * Throws only when accessed at runtime.
+ */
+function getEnv(key: string): string {
   const value = process.env[key];
-  if (!value) throw new Error(`[ENV ERROR] Missing environment variable: ${key}`);
+  if (!value) {
+    throw new Error(`[ENV ERROR] Missing environment variable: ${key}`);
+  }
   return value;
 }
 
 /* ================= CONTRACT ADDRESSES ================= */
 
 export const CONTRACTS = {
-  FSKMegaLocker: getAddress(requireEnv("NEXT_PUBLIC_LOCKER_FACTORY_ADDRESS")),
-  FSKLaunchpadFactory: getAddress(requireEnv("NEXT_PUBLIC_LAUNCHPAD_FACTORY_ADDRESS")),
-  FSKFeeCollector: getAddress(requireEnv("NEXT_PUBLIC_FEECOLLECTOR_ADDRESS")),
-  FskFlashSwap: getAddress(requireEnv("NEXT_PUBLIC_FLASHSWAP_ADDRESS")),
-  FskHelpFundPool: getAddress(requireEnv("NEXT_PUBLIC_HELPFUND_ADDRESS")),
-  FSKRouterV3: getAddress(requireEnv("NEXT_PUBLIC_ROUTER_ADDRESS")),
-  FskFactoryV2: getAddress(requireEnv("NEXT_PUBLIC_FACTORY_ADDRESS")),
-  FSKSwapLPStaking: getAddress(requireEnv("NEXT_PUBLIC_STAKING_ADDRESS")),
+  FSKMegaLocker: getAddress(getEnv("NEXT_PUBLIC_LOCKER_FACTORY_ADDRESS")),
+  FSKLaunchpadFactory: getAddress(getEnv("NEXT_PUBLIC_LAUNCHPAD_FACTORY_ADDRESS")),
+  FSKFeeCollector: getAddress(getEnv("NEXT_PUBLIC_FEECOLLECTOR_ADDRESS")),
+  FskFlashSwap: getAddress(getEnv("NEXT_PUBLIC_FLASHSWAP_ADDRESS")),
+  FskHelpFundPool: getAddress(getEnv("NEXT_PUBLIC_HELPFUND_ADDRESS")),
+  FSKRouterV3: getAddress(getEnv("NEXT_PUBLIC_ROUTER_ADDRESS")),
+  FskFactoryV2: getAddress(getEnv("NEXT_PUBLIC_FACTORY_ADDRESS")),
+  FSKSwapLPStaking: getAddress(getEnv("NEXT_PUBLIC_STAKING_ADDRESS")),
 } as const;
 
 /* ================= SHORTHANDS ================= */
@@ -65,32 +69,20 @@ export const helpFundPoolAddress = CONTRACTS.FskHelpFundPool;
 /* ================= TOKENS ================= */
 
 export const TOKENS = {
-  FSK: getAddress(requireEnv("NEXT_PUBLIC_FSK_ADDRESS")),
-  FUSDT: getAddress(requireEnv("NEXT_PUBLIC_FUSDT_ADDRESS")),
-  USDC: getAddress(requireEnv("NEXT_PUBLIC_USDC_ADDRESS")),
-  WBNB: getAddress(requireEnv("NEXT_PUBLIC_WBNB_ADDRESS")),
-  BTC: getAddress(requireEnv("NEXT_PUBLIC_BTC_ADDRESS")),
-  ETH: getAddress(requireEnv("NEXT_PUBLIC_ETH_ADDRESS")),
-  SOL: getAddress(requireEnv("NEXT_PUBLIC_SOL_ADDRESS")),
+  FSK: getAddress(getEnv("NEXT_PUBLIC_FSK_ADDRESS")),
+  FUSDT: getAddress(getEnv("NEXT_PUBLIC_FUSDT_ADDRESS")),
+  USDC: getAddress(getEnv("NEXT_PUBLIC_USDC_ADDRESS")),
+  WBNB: getAddress(getEnv("NEXT_PUBLIC_WBNB_ADDRESS")),
+  BTC: getAddress(getEnv("NEXT_PUBLIC_BTC_ADDRESS")),
+  ETH: getAddress(getEnv("NEXT_PUBLIC_ETH_ADDRESS")),
+  SOL: getAddress(getEnv("NEXT_PUBLIC_SOL_ADDRESS")),
 } as const;
-
-/* ================= TOKEN MAP ================= */
-
-export const TOKEN_ADDRESS_MAP: Record<string, AddressLike> = {
-  FSK: TOKENS.FSK,
-  FUSDT: TOKENS.FUSDT,
-  USDC: TOKENS.USDC,
-  WBNB: TOKENS.WBNB,
-  BTC: TOKENS.BTC,
-  ETH: TOKENS.ETH,
-  SOL: TOKENS.SOL,
-};
 
 /* ================= TOKEN LIST ================= */
 
 export type TokenMeta = {
   symbol: string;
-  address: AddressLike;
+  address: string;
   decimals: number;
 };
 
@@ -99,7 +91,7 @@ export const TOKEN_LIST: TokenMeta[] = [
   { symbol: "FUSDT", address: TOKENS.FUSDT, decimals: 18 },
   { symbol: "USDC", address: TOKENS.USDC, decimals: 18 },
   { symbol: "WBNB", address: TOKENS.WBNB, decimals: 18 },
-  { symbol: "BTC", address: TOKENS.BTC, decimals: 8 },
+  { symbol: "BTC", address: TOKENS.BTC, decimals: 18 },
   { symbol: "ETH", address: TOKENS.ETH, decimals: 18 },
   { symbol: "SOL", address: TOKENS.SOL, decimals: 18 },
 ];
@@ -157,39 +149,9 @@ export const ABIS = {
   IFSKRouter: IFSKRouter_ABI,
 } as const;
 
-/* ================= MINIMAL ERC20 ================= */
-
-export const MINIMAL_ERC20_ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)",
-  "function name() view returns (string)",
-  "function approve(address spender, uint256 value) returns (bool)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function transfer(address to, uint256 value) returns (bool)",
-] as const;
-
 /* ================= APP CONSTANTS ================= */
 
 export const APP_CONSTANTS = {
   DEFAULT_DEADLINE_SECONDS: 1200,
   DEFAULT_SLIPPAGE_PERCENT: 0.5,
 } as const;
-
-/* ================= EXPORT SHORTHANDS ================= */
-
-export const DEFAULT_BNB_RPC = RPC_URL;
-export const FSKMegaLockerAddress = CONTRACTS.FSKMegaLocker;
-export const FSKMegaLockerABI = FSKMegaLocker_ABI;
-export const FSKLaunchpadFactoryAddress = CONTRACTS.FSKLaunchpadFactory;
-export const FSKLaunchpadFactoryABI = FSKLaunchpadFactory_ABI;
-export const FSKRouterAddress = CONTRACTS.FSKRouterV3;
-export const FSKRouterABI = FSKRouter_ABI;
-export const FSKSwapLPStakingAddress = CONTRACTS.FSKSwapLPStaking;
-export const FSKSwapLPStakingABI = FSKSwapLPStaking_ABI;
-export const FSKFeeCollectorAddress = CONTRACTS.FSKFeeCollector;
-export const FSKFeeCollectorABI = FSKFeeCollector_ABI;
-export const FlashSwapAddress = CONTRACTS.FskFlashSwap;
-export const FlashSwapABI = FskFlashSwap_ABI;
-export const HelpFundPoolAddress = CONTRACTS.FskHelpFundPool;
-export const HelpFundPoolABI = FSKHelpFundAllPool_ABI;
