@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import {
   Contract,
   JsonRpcProvider,
@@ -34,30 +34,24 @@ export const useSwap = () => {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
 
-  /* ================= READ PROVIDER ================= */
+  /* ---------- READ PROVIDER ---------- */
   const readProvider = useMemo(() => new JsonRpcProvider(BNB_TESTNET_RPC), []);
 
-  /* ================= READ ROUTER ================= */
-  const routerRead = useMemo(() => {
-    return new Contract(routerAddress, ABIS.FSKRouter, readProvider);
-  }, [readProvider]);
+  /* ---------- ROUTER READ ---------- */
+  const routerRead = useMemo(() => new Contract(routerAddress, ABIS.FSKRouter, readProvider), [readProvider]);
 
-  /* ================= ERC20 HELPERS ================= */
-  const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
+  /* ---------- ERC20 DECIMALS HELPER ---------- */
+  const getTokenDecimals = useCallback(async (tokenAddress: string) => {
     try {
       const token = new Contract(tokenAddress, MINIMAL_ERC20_ABI, readProvider);
       return Number(await token.decimals());
     } catch {
       return 18;
     }
-  };
+  }, [readProvider]);
 
-  /* ================= PATH FINDER ================= */
-  const findBestPath = async (
-    fromToken: TokenKey,
-    toToken: TokenKey,
-    amountIn: string
-  ): Promise<{ path: string[]; amountOut: bigint }> => {
+  /* ---------- BEST PATH CALC ---------- */
+  const findBestPath = useCallback(async (fromToken: TokenKey, toToken: TokenKey, amountIn: string) => {
     const from = TOKENS[fromToken];
     const to = TOKENS[toToken];
 
@@ -84,33 +78,27 @@ export const useSwap = () => {
       }
     } catch {}
 
-    if (bestAmountOut === 0n) {
-      throw new Error("Insufficient liquidity");
-    }
+    if (bestAmountOut === 0n) throw new Error("Insufficient liquidity");
 
     return { path: bestPath, amountOut: bestAmountOut };
-  };
+  }, [routerRead, getTokenDecimals]);
 
-  /* ================= QUOTE ================= */
-  const getAmountOut = async (
-    fromToken: TokenKey,
-    toToken: TokenKey,
-    amountIn: string
-  ): Promise<string> => {
-    const { amountOut } = await findBestPath(fromToken, toToken, amountIn);
-    const decimalsOut = await getTokenDecimals(TOKENS[toToken]);
+  /* ---------- QUOTE ---------- */
+  const getAmountOut = useCallback(async (fromToken: TokenKey, toToken: TokenKey, amountIn: string) => {
+    const { amountOut, path } = await findBestPath(fromToken, toToken, amountIn);
+    const decimalsOut = await getTokenDecimals(path[path.length - 1]);
     return formatUnits(amountOut, decimalsOut);
-  };
+  }, [findBestPath, getTokenDecimals]);
 
-  /* ================= WRITE SIGNER ================= */
-  const getSigner = async () => {
+  /* ---------- SIGNER HELPER ---------- */
+  const getSigner = useCallback(async () => {
     if (!walletClient || !isConnected) throw new Error("Wallet not connected");
     const provider = new BrowserProvider(walletClient.transport);
     return provider.getSigner();
-  };
+  }, [walletClient, isConnected]);
 
-  /* ================= SWAP ================= */
-  const swapExactTokensForTokens = async ({
+  /* ---------- SWAP ACTION ---------- */
+  const swapExactTokensForTokens = useCallback(async ({
     amountIn,
     fromToken,
     toToken,
@@ -123,15 +111,14 @@ export const useSwap = () => {
     const router = new Contract(routerAddress, ABIS.FSKRouter, signer);
 
     const { path, amountOut } = await findBestPath(fromToken, toToken, amountIn);
-
     const decimalsIn = await getTokenDecimals(path[0]);
     const amountInParsed = parseUnits(amountIn, decimalsIn);
 
-    // Slippage
+    // Slippage calculation
     const slippageBps = BigInt(Math.floor(slippagePercent * 100));
     const amountOutMin = (amountOut * (10_000n - slippageBps)) / 10_000n;
 
-    // Approval
+    // Approve token if needed
     const tokenIn = new Contract(path[0], MINIMAL_ERC20_ABI, signer);
     const allowance: bigint = await tokenIn.allowance(address, routerAddress);
     if (allowance < amountInParsed) {
@@ -139,17 +126,11 @@ export const useSwap = () => {
       await tx.wait();
     }
 
-    // Swap
+    // Execute swap
     const deadline = Math.floor(Date.now() / 1000) + APP_CONSTANTS.DEFAULT_DEADLINE_SECONDS;
-    const tx = await router.swapExactTokensForTokens(
-      amountInParsed,
-      amountOutMin,
-      path,
-      to,
-      deadline
-    );
+    const tx = await router.swapExactTokensForTokens(amountInParsed, amountOutMin, path, to, deadline);
     await tx.wait();
-  };
+  }, [address, getSigner, findBestPath, getTokenDecimals]);
 
   return {
     getAmountOut,
