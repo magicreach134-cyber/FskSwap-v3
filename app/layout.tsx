@@ -7,6 +7,7 @@ import "../styles/flashswap.css";
 import "../styles/staking.css";
 
 import DexHeader from "../components/layout/DexHeader";
+import Web3Providers from "../components/providers/Web3Providers";
 
 export const metadata: Metadata = {
   title: "FSKSwap",
@@ -21,11 +22,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <DexHeader />
-        <main className="dex-main">{children}</main>
-        <footer className="dex-footer">
-          <p>© {new Date().getFullYear()} FSKSwap. All rights reserved.</p>
-        </footer>
+        <Web3Providers>
+          <DexHeader />
+          <main className="dex-main">{children}</main>
+          <footer className="dex-footer">
+            <p>© {new Date().getFullYear()} FSKSwap. All rights reserved.</p>
+          </footer>
+        </Web3Providers>
       </body>
     </html>
   );
