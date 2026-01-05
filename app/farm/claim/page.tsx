@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { BrowserProvider, JsonRpcSigner } from "ethers";
-import { formatEther, parseEther } from "ethers/lib/utils";
-
 import ThemeSwitch from "@/components/ThemeSwitch";
 import useFarm, { FarmView } from "@/hooks/useFarm";
 
@@ -12,9 +10,10 @@ import "@/styles/staking.css";
 const FarmClaim = () => {
   const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
   const [account, setAccount] = useState<string>("");
-  const { farms, loadingFarms, loadFarms, claim, stake, unstake } = useFarm(signer);
+  const { farms, loading, loadFarms, claim, stake, unstake } = useFarm(signer);
   const [loadingPid, setLoadingPid] = useState<number | null>(null);
-  const [inputAmounts, setInputAmounts] = useState<Record<number, string>>({});
+  const [stakeAmount, setStakeAmount] = useState<Record<number, string>>({});
+  const [unstakeAmount, setUnstakeAmount] = useState<Record<number, string>>({});
 
   /* ---------- WALLET INIT ---------- */
   useEffect(() => {
@@ -38,44 +37,57 @@ const FarmClaim = () => {
     loadFarms().catch(console.error);
   }, [signer, account, loadFarms]);
 
-  /* ---------- HANDLE CLAIM ---------- */
+  /* ---------- CLAIM HANDLER ---------- */
   const handleClaim = async (pid: number) => {
-    if (!signer) return alert("Connect wallet first");
+    if (!signer || !account) return alert("Connect wallet first");
+
     setLoadingPid(pid);
     try {
       await claim(pid);
-      alert("Rewards claimed successfully");
+      alert("Claimed rewards successfully");
+      await loadFarms();
     } catch (err: any) {
+      console.error(err);
       alert(err?.message || "Claim failed");
     } finally {
       setLoadingPid(null);
     }
   };
 
-  /* ---------- HANDLE STAKE ---------- */
+  /* ---------- STAKE HANDLER ---------- */
   const handleStake = async (pid: number) => {
-    const amount = inputAmounts[pid];
-    if (!amount || Number(amount) <= 0) return alert("Enter a valid amount");
+    if (!signer || !account) return alert("Connect wallet first");
+    const amount = stakeAmount[pid];
+    if (!amount || parseFloat(amount) <= 0) return alert("Enter valid amount");
+
     setLoadingPid(pid);
     try {
       await stake(pid, amount);
-      alert(`Staked ${amount} successfully`);
+      alert("Staked successfully");
+      setStakeAmount(prev => ({ ...prev, [pid]: "" }));
+      await loadFarms();
     } catch (err: any) {
+      console.error(err);
       alert(err?.message || "Stake failed");
     } finally {
       setLoadingPid(null);
     }
   };
 
-  /* ---------- HANDLE UNSTAKE ---------- */
+  /* ---------- UNSTAKE HANDLER ---------- */
   const handleUnstake = async (pid: number) => {
-    const amount = inputAmounts[pid];
-    if (!amount || Number(amount) <= 0) return alert("Enter a valid amount");
+    if (!signer || !account) return alert("Connect wallet first");
+    const amount = unstakeAmount[pid];
+    if (!amount || parseFloat(amount) <= 0) return alert("Enter valid amount");
+
     setLoadingPid(pid);
     try {
       await unstake(pid, amount);
-      alert(`Unstaked ${amount} successfully`);
+      alert("Unstaked successfully");
+      setUnstakeAmount(prev => ({ ...prev, [pid]: "" }));
+      await loadFarms();
     } catch (err: any) {
+      console.error(err);
       alert(err?.message || "Unstake failed");
     } finally {
       setLoadingPid(null);
@@ -87,7 +99,7 @@ const FarmClaim = () => {
       <header className="farm-header">
         <div className="logo">
           <img src="/assets/logo.png" alt="FSKSwap" />
-          <span>Farms & Rewards</span>
+          <span>Farm Dashboard</span>
         </div>
 
         <div className="header-right">
@@ -110,55 +122,78 @@ const FarmClaim = () => {
         <h2>Your Farms</h2>
 
         {!account && <p>Please connect your wallet to view farms.</p>}
-        {account && loadingFarms && <p>Loading farms...</p>}
-        {account && !loadingFarms && farms.length === 0 && <p>No farms available.</p>}
+        {account && loading && <p>Loading farms...</p>}
+        {account && !loading && farms.length === 0 && <p>No farms available.</p>}
 
-        {account && farms.map((farm: FarmView) => {
-          const claimable = Number(farm.pending ?? "0");
-          const staked = Number(farm.staked ?? "0");
+        {account &&
+          farms.map((farm: FarmView) => {
+            const pending = parseFloat(farm.pending);
+            const staked = parseFloat(farm.staked);
 
-          return (
-            <div key={farm.pid} className="farm-card">
-              <h3>{farm.name} ({farm.symbol})</h3>
-              <p><strong>Staked:</strong> {staked.toFixed(6)}</p>
-              <p><strong>Claimable:</strong> {claimable.toFixed(6)} {farm.rewardTokenSymbol}</p>
-              <p><strong>APY:</strong> {farm.apy.toFixed(2)}%</p>
+            return (
+              <div key={farm.pid} className="farm-card">
+                <p>
+                  <strong>Pair:</strong> {farm.name} ({farm.symbol})
+                </p>
+                <p>
+                  <strong>Staked:</strong> {staked.toFixed(6)}
+                </p>
+                <p>
+                  <strong>Claimable:</strong> {pending.toFixed(6)}
+                </p>
 
-              <div className="farm-actions">
-                {claimable > 0 && (
+                {/* Claim Button */}
+                {pending > 0 && (
                   <button
                     onClick={() => handleClaim(farm.pid)}
                     disabled={loadingPid === farm.pid}
                   >
-                    {loadingPid === farm.pid ? "Claiming..." : `Claim ${farm.rewardTokenSymbol}`}
+                    {loadingPid === farm.pid ? "Claiming..." : "Claim"}
                   </button>
                 )}
 
-                <input
-                  type="number"
-                  placeholder="Amount"
-                  min="0"
-                  value={inputAmounts[farm.pid] || ""}
-                  onChange={(e) => setInputAmounts({ ...inputAmounts, [farm.pid]: e.target.value })}
-                />
+                {/* Stake Section */}
+                <div className="stake-section">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.000001"
+                    placeholder="Amount to stake"
+                    value={stakeAmount[farm.pid] || ""}
+                    onChange={(e) =>
+                      setStakeAmount((prev) => ({ ...prev, [farm.pid]: e.target.value }))
+                    }
+                  />
+                  <button
+                    onClick={() => handleStake(farm.pid)}
+                    disabled={loadingPid === farm.pid}
+                  >
+                    {loadingPid === farm.pid ? "Processing..." : "Stake"}
+                  </button>
+                </div>
 
-                <button
-                  onClick={() => handleStake(farm.pid)}
-                  disabled={loadingPid === farm.pid}
-                >
-                  {loadingPid === farm.pid ? "Processing..." : "Stake"}
-                </button>
-
-                <button
-                  onClick={() => handleUnstake(farm.pid)}
-                  disabled={loadingPid === farm.pid}
-                >
-                  {loadingPid === farm.pid ? "Processing..." : "Unstake"}
-                </button>
+                {/* Unstake Section */}
+                <div className="unstake-section">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.000001"
+                    placeholder="Amount to unstake"
+                    value={unstakeAmount[farm.pid] || ""}
+                    onChange={(e) =>
+                      setUnstakeAmount((prev) => ({ ...prev, [farm.pid]: e.target.value }))
+                    }
+                  />
+                  <button
+                    onClick={() => handleUnstake(farm.pid)}
+                    disabled={loadingPid === farm.pid}
+                  >
+                    {loadingPid === farm.pid ? "Processing..." : "Unstake"}
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </main>
     </div>
   );
