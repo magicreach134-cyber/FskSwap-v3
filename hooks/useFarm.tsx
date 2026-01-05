@@ -1,157 +1,147 @@
-import { useState, useEffect, useCallback } from "react";
-import { Contract, JsonRpcSigner, BigNumber } from "ethers";
-import { formatEther, parseEther } from "ethers/lib/utils";
-import { FARM_ABI, ERC20_ABI } from "@/constants/abis";
-import { FSK_FARM_ADDRESS } from "@/constants/addresses";
+"use client";
 
+import { useState, useEffect, useCallback } from "react";
+import { Contract, JsonRpcSigner, ethers } from "ethers";
+import { formatUnits, parseUnits } from "ethers/lib/utils";
+
+// Import your farm ABI and LP token ABI
+import FarmAbi from "@/abis/Farm.json";
+import ERC20Abi from "@/abis/ERC20.json";
+
+// Types
 export interface FarmView {
   pid: number;
   name: string;
   symbol: string;
+  lpToken: string;
   staked: string;
   pending: string;
-  apy: number;
-  lpTokenAddress: string;
-  rewardTokenSymbol: string;
+  rewardToken: string;
+  rewardSymbol: string;
+  lpDecimals: number;
+  rewardDecimals: number;
+  allowance: string;
 }
 
-interface UseFarmHook {
-  farms: FarmView[];
-  loadingFarms: boolean;
-  loadFarms: () => Promise<void>;
-  claim: (pid: number) => Promise<void>;
-  stake: (pid: number, amount: string) => Promise<void>;
-  unstake: (pid: number, amount: string) => Promise<void>;
-}
-
-const REWARD_TOKEN_PRICE = 0.1; // Example placeholder, integrate real price feed
-const LP_TOKEN_PRICE = 1; // Example placeholder
-
-const useFarm = (signer: JsonRpcSigner | null): UseFarmHook => {
+// Hook
+export default function useFarm(signer: JsonRpcSigner | null) {
   const [farms, setFarms] = useState<FarmView[]>([]);
-  const [loadingFarms, setLoadingFarms] = useState(false);
+  const [loadingFarmIds, setLoadingFarmIds] = useState<number[]>([]);
+
+  // Replace with your deployed farm addresses
+  const FARM_ADDRESSES = [
+    { pid: 0, farm: "0xYourFarmContract1" },
+    { pid: 1, farm: "0xYourFarmContract2" },
+  ];
 
   const loadFarms = useCallback(async () => {
     if (!signer) return;
-    setLoadingFarms(true);
+    const provider = signer.provider;
+    const loadedFarms: FarmView[] = [];
 
-    try {
-      const farmContract = new Contract(FSK_FARM_ADDRESS, FARM_ABI, signer);
-      const poolLength = Number(await farmContract.poolLength());
+    for (let farmInfo of FARM_ADDRESSES) {
+      try {
+        const farmContract = new Contract(farmInfo.farm, FarmAbi, signer);
 
-      const userAddress = await signer.getAddress();
-      const farmData: FarmView[] = [];
+        // LP token info
+        const lpTokenAddress: string = await farmContract.lpToken();
+        const lpContract = new Contract(lpTokenAddress, ERC20Abi, signer);
+        const lpDecimals: number = await lpContract.decimals();
+        const lpSymbol: string = await lpContract.symbol();
+        const userLp = signer ? await lpContract.balanceOf(await signer.getAddress()) : ethers.constants.Zero;
+        const allowance = signer ? await lpContract.allowance(await signer.getAddress(), farmInfo.farm) : ethers.constants.Zero;
 
-      for (let pid = 0; pid < poolLength; pid++) {
-        const poolInfo = await farmContract.poolInfo(pid);
-        const userInfo = await farmContract.userInfo(pid, userAddress);
-        const pending = await farmContract.pendingReward(pid, userAddress);
+        // Reward info
+        const rewardToken: string = await farmContract.rewardToken();
+        const rewardContract = new Contract(rewardToken, ERC20Abi, signer);
+        const rewardDecimals: number = await rewardContract.decimals();
+        const rewardSymbol: string = await rewardContract.symbol();
 
-        const lpToken = new Contract(poolInfo.lpToken, ERC20_ABI, signer);
-        const name = await lpToken.name();
-        const symbol = await lpToken.symbol();
+        const pending = signer ? await farmContract.pendingReward(await signer.getAddress()) : ethers.constants.Zero;
+        const staked = signer ? await farmContract.userInfo(await signer.getAddress()) : { amount: ethers.constants.Zero };
 
-        const rewardToken = new Contract(poolInfo.rewardToken, ERC20_ABI, signer);
-        const rewardSymbol = await rewardToken.symbol();
-
-        // Example APY calculation
-        const rewardPerYear = Number(formatEther(poolInfo.rewardPerBlock || 0)) * 10512000; // assuming 3s block time
-        const totalStaked = Number(formatEther(await lpToken.balanceOf(FSK_FARM_ADDRESS)));
-        const apy = totalStaked > 0 ? (rewardPerYear * REWARD_TOKEN_PRICE) / (totalStaked * LP_TOKEN_PRICE) * 100 : 0;
-
-        farmData.push({
-          pid,
-          name,
-          symbol,
-          staked: formatEther(userInfo.amount),
-          pending: formatEther(pending),
-          apy,
-          lpTokenAddress: poolInfo.lpToken,
-          rewardTokenSymbol: rewardSymbol,
+        loadedFarms.push({
+          pid: farmInfo.pid,
+          name: `Farm ${farmInfo.pid}`,
+          symbol: lpSymbol,
+          lpToken: lpTokenAddress,
+          staked: formatUnits(staked.amount, lpDecimals),
+          pending: formatUnits(pending, rewardDecimals),
+          rewardToken,
+          rewardSymbol,
+          lpDecimals,
+          rewardDecimals,
+          allowance: formatUnits(allowance, lpDecimals),
         });
+      } catch (err) {
+        console.error(`Failed to load farm ${farmInfo.pid}:`, err);
       }
-
-      setFarms(farmData);
-    } catch (err) {
-      console.error("Failed to load farms:", err);
-    } finally {
-      setLoadingFarms(false);
     }
+
+    setFarms(loadedFarms);
   }, [signer]);
 
-  const claim = useCallback(
-    async (pid: number) => {
-      if (!signer) throw new Error("Wallet not connected");
-      const farmContract = new Contract(FSK_FARM_ADDRESS, FARM_ABI, signer);
-      try {
-        const tx = await farmContract.claim(pid);
-        await tx.wait();
-        await loadFarms();
-      } catch (err) {
-        console.error("Claim failed:", err);
-        throw err;
-      }
-    },
-    [signer, loadFarms]
-  );
+  // Approve LP tokens for staking
+  const approve = async (farmPid: number, amount: string) => {
+    if (!signer) throw new Error("Signer not connected");
+    const farm = farms.find((f) => f.pid === farmPid);
+    if (!farm) throw new Error("Farm not found");
 
-  const stake = useCallback(
-    async (pid: number, amount: string) => {
-      if (!signer) throw new Error("Wallet not connected");
-      const farmContract = new Contract(FSK_FARM_ADDRESS, FARM_ABI, signer);
+    const lpContract = new Contract(farm.lpToken, ERC20Abi, signer);
+    const tx = await lpContract.approve(FARM_ADDRESSES[farmPid].farm, parseUnits(amount, farm.lpDecimals));
+    setLoadingFarmIds((prev) => [...prev, farmPid]);
+    await tx.wait();
+    setLoadingFarmIds((prev) => prev.filter((id) => id !== farmPid));
+    await loadFarms();
+  };
 
-      const poolInfo = await farmContract.poolInfo(pid);
-      const lpToken = new Contract(poolInfo.lpToken, ERC20_ABI, signer);
+  // Stake LP tokens
+  const stake = async (farmPid: number, amount: string) => {
+    if (!signer) throw new Error("Signer not connected");
+    const farmContract = new Contract(FARM_ADDRESSES[farmPid].farm, FarmAbi, signer);
+    const farm = farms.find((f) => f.pid === farmPid);
+    if (!farm) throw new Error("Farm not found");
 
-      try {
-        const allowance: BigNumber = await lpToken.allowance(await signer.getAddress(), FSK_FARM_ADDRESS);
-        if (allowance.lt(parseEther(amount))) {
-          const approveTx = await lpToken.approve(FSK_FARM_ADDRESS, parseEther(amount));
-          await approveTx.wait();
-        }
+    setLoadingFarmIds((prev) => [...prev, farmPid]);
+    const tx = await farmContract.deposit(parseUnits(amount, farm.lpDecimals));
+    await tx.wait();
+    setLoadingFarmIds((prev) => prev.filter((id) => id !== farmPid));
+    await loadFarms();
+  };
 
-        const tx = await farmContract.deposit(pid, parseEther(amount));
-        await tx.wait();
-        await loadFarms();
-      } catch (err) {
-        console.error("Stake failed:", err);
-        throw err;
-      }
-    },
-    [signer, loadFarms]
-  );
+  // Unstake LP tokens
+  const unstake = async (farmPid: number, amount: string) => {
+    if (!signer) throw new Error("Signer not connected");
+    const farmContract = new Contract(FARM_ADDRESSES[farmPid].farm, FarmAbi, signer);
+    const farm = farms.find((f) => f.pid === farmPid);
+    if (!farm) throw new Error("Farm not found");
 
-  const unstake = useCallback(
-    async (pid: number, amount: string) => {
-      if (!signer) throw new Error("Wallet not connected");
-      const farmContract = new Contract(FSK_FARM_ADDRESS, FARM_ABI, signer);
-      try {
-        const tx = await farmContract.withdraw(pid, parseEther(amount));
-        await tx.wait();
-        await loadFarms();
-      } catch (err) {
-        console.error("Unstake failed:", err);
-        throw err;
-      }
-    },
-    [signer, loadFarms]
-  );
+    setLoadingFarmIds((prev) => [...prev, farmPid]);
+    const tx = await farmContract.withdraw(parseUnits(amount, farm.lpDecimals));
+    await tx.wait();
+    setLoadingFarmIds((prev) => prev.filter((id) => id !== farmPid));
+    await loadFarms();
+  };
 
-  // Optional: refresh farms every 15 seconds
-  useEffect(() => {
-    if (!signer) return;
-    const interval = setInterval(loadFarms, 15000);
-    return () => clearInterval(interval);
-  }, [signer, loadFarms]);
+  // Claim rewards
+  const claim = async (farmPid: number) => {
+    if (!signer) throw new Error("Signer not connected");
+    const farmContract = new Contract(FARM_ADDRESSES[farmPid].farm, FarmAbi, signer);
+
+    setLoadingFarmIds((prev) => [...prev, farmPid]);
+    const tx = await farmContract.claim();
+    await tx.wait();
+    setLoadingFarmIds((prev) => prev.filter((id) => id !== farmPid));
+    await loadFarms();
+  };
 
   return {
     farms,
-    loadingFarms,
     loadFarms,
-    claim,
+    approve,
     stake,
     unstake,
+    claim,
+    loadingFarmIds,
   };
-};
-
-export default useFarm;
+}
