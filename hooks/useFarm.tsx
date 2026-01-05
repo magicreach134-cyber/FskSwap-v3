@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
   Contract,
   JsonRpcProvider,
@@ -33,12 +33,9 @@ const readProvider = new JsonRpcProvider(BNB_TESTNET_RPC);
 
 /* ---------- VIEM → ETHERS SIGNER BRIDGE ---------- */
 async function walletClientToSigner(walletClient: WalletClient) {
-  const { transport } = walletClient;
-
   const provider = new BrowserProvider(
-    transport as unknown as import("ethers").Eip1193Provider
+    walletClient.transport as unknown as import("ethers").Eip1193Provider
   );
-
   return provider.getSigner();
 }
 
@@ -50,10 +47,9 @@ const useFarm = (refreshInterval = 15_000) => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* ---------- READ CONTRACT ---------- */
-  const stakingRead = new Contract(
-    stakingAddress,
-    ABIS.FSKSwapLPStaking,
-    readProvider
+  const stakingRead = useMemo(
+    () => new Contract(stakingAddress, ABIS.FSKSwapLPStaking, readProvider),
+    []
   );
 
   /* ---------- LOAD FARMS ---------- */
@@ -106,68 +102,77 @@ const useFarm = (refreshInterval = 15_000) => {
   }, [isConnected, refreshInterval, loadFarms]);
 
   /* ---------- SIGNER ---------- */
-  const getSigner = async () => {
+  const getSigner = useCallback(async () => {
     if (!walletClient) throw new Error("Wallet not connected");
     return walletClientToSigner(walletClient);
-  };
+  }, [walletClient]);
 
   /* ---------- ACTIONS ---------- */
-  const stake = async (pid: number, amount: string) => {
-    if (!address) throw new Error("No wallet connected");
+  const stake = useCallback(
+    async (pid: number, amount: string) => {
+      if (!address) throw new Error("No wallet connected");
 
-    const signer = await getSigner();
-    const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
+      const signer = await getSigner();
+      const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
 
-    const pool = await staking.poolInfo(pid);
-    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
+      const pool = await staking.poolInfo(pid);
+      const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
 
-    const decimals = await lp.decimals();
-    const value = parseUnits(amount, decimals);
+      const decimals = await lp.decimals();
+      const value = parseUnits(amount, decimals);
 
-    const allowance: bigint = await lp.allowance(address, stakingAddress);
-    if (allowance < value) {
-      const approveTx = await lp.approve(stakingAddress, MaxUint256);
-      await approveTx.wait();
-    }
+      const allowance: bigint = await lp.allowance(address, stakingAddress);
+      if (allowance < value) {
+        const approveTx = await lp.approve(stakingAddress, MaxUint256);
+        await approveTx.wait();
+      }
 
-    const tx = await staking.deposit(pid, value);
-    await tx.wait();
+      const tx = await staking.deposit(pid, value);
+      await tx.wait();
 
-    await loadFarms();
-  };
+      await loadFarms();
+    },
+    [address, getSigner, loadFarms]
+  );
 
-  const unstake = async (pid: number, amount: string) => {
-    if (!address) throw new Error("No wallet connected");
+  const unstake = useCallback(
+    async (pid: number, amount: string) => {
+      if (!address) throw new Error("No wallet connected");
 
-    const signer = await getSigner();
-    const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
+      const signer = await getSigner();
+      const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
 
-    const pool = await staking.poolInfo(pid);
-    const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
+      const pool = await staking.poolInfo(pid);
+      const lp = new Contract(pool.lpToken, MINIMAL_ERC20_ABI, signer);
 
-    const value = parseUnits(amount, await lp.decimals());
-    const tx = await staking.withdraw(pid, value);
-    await tx.wait();
+      const value = parseUnits(amount, await lp.decimals());
+      const tx = await staking.withdraw(pid, value);
+      await tx.wait();
 
-    await loadFarms();
-  };
+      await loadFarms();
+    },
+    [address, getSigner, loadFarms]
+  );
 
-  const claim = async (pid: number) => {
-    const signer = await getSigner();
-    const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
+  const claim = useCallback(
+    async (pid: number) => {
+      const signer = await getSigner();
+      const staking = new Contract(stakingAddress, ABIS.FSKSwapLPStaking, signer);
 
-    const tx = await staking.claim(pid);
-    await tx.wait();
+      const tx = await staking.claim(pid);
+      await tx.wait();
 
-    await loadFarms();
-  };
+      await loadFarms();
+    },
+    [getSigner, loadFarms]
+  );
 
   return {
     farms,
     stake,
     unstake,
     claim,
-    loadFarms, // <-- exported for page use
+    loadFarms, // exported for page use
   };
 };
 
