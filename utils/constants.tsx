@@ -30,10 +30,7 @@ export const DEFAULT_BNB_RPC = RPC_URLS[ACTIVE_CHAIN_ID][0];
 export const BNB_TESTNET_RPC = DEFAULT_BNB_RPC;
 
 /* ================= ENV SAFE ACCESS ================= */
-/**
- * Does NOT throw during build.
- * Throws only when accessed at runtime.
- */
+
 function getEnv(key: string): string {
   const value = process.env[key];
   if (!value) {
@@ -107,6 +104,28 @@ export const TOKEN_COLORS: Record<string, string> = {
   ETH: "#627eea",
   SOL: "#66f9a1",
 };
+
+/* ================= MINIMAL ERC20 ABI ================= */
+
+export const MINIMAL_ERC20_ABI = [
+  "function decimals() view returns (uint8)",
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address,address) view returns (uint256)",
+  "function approve(address,uint256) returns (bool)",
+  "function transfer(address,uint256) returns (bool)",
+];
+
+/* ================= LOCKER ABI & ADDRESS ================= */
+
+export const FSKMegaLockerAddress = CONTRACTS.FSKMegaLocker;
+export const FSKMegaLockerABI = [
+  "function getOwnerLocks(address) view returns (uint256[])",
+  "function getLock(uint256) view returns (address lockerOwner, address token, uint256 amount, uint256 unlockTime, bool withdrawn)",
+  "function withdrawFromLock(uint256,uint256) returns (bool)",
+  "function getBeneficiaryVestings(address) view returns (uint256[])",
+  "function vestings(uint256) view returns (address beneficiary, address token, uint256 amount, uint256 start, uint256 duration, uint256 claimed)",
+  "function withdrawFromVesting(uint256) returns (bool)",
+];
 
 /* ================= ABIS ================= */
 
