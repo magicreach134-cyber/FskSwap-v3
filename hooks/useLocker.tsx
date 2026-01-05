@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Contract, BrowserProvider, JsonRpcProvider, Signer, parseUnits, formatUnits } from "ethers";
-
+import { Contract, type Signer, formatUnits, parseUnits } from "ethers";
 import { FSKMegaLockerAddress, FSKMegaLockerABI, DEFAULT_BNB_RPC } from "../utils/constants";
 import ERC20ABI from "../utils/abis/ERC20.json";
 
@@ -23,31 +22,31 @@ export interface Vesting {
   claimed: string;
 }
 
-type ProviderLike = BrowserProvider | JsonRpcProvider | null;
+interface UseLockerProps {
+  provider?: any; // wagmi provider or ethers provider
+  signer?: Signer | null;
+}
 
-const useLocker = (provider: ProviderLike) => {
+const useLocker = ({ provider, signer }: UseLockerProps) => {
   const [lockerContract, setLockerContract] = useState<Contract | null>(null);
 
   /* ---------- INIT CONTRACT ---------- */
   useEffect(() => {
-    const init = async () => {
-      try {
-        const readProvider = provider ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
-        const contract = new Contract(FSKMegaLockerAddress, FSKMegaLockerABI, readProvider);
-        setLockerContract(contract);
-      } catch (err) {
-        console.error("Locker init failed:", err);
-        setLockerContract(null);
-      }
-    };
-    init();
+    if (!provider) return;
+
+    try {
+      const contract = new Contract(FSKMegaLockerAddress, FSKMegaLockerABI, provider);
+      setLockerContract(contract);
+    } catch (err) {
+      console.error("Locker contract init failed:", err);
+      setLockerContract(null);
+    }
   }, [provider]);
 
   /* ---------- HELPERS ---------- */
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
     try {
-      const readProvider = provider ?? new JsonRpcProvider(DEFAULT_BNB_RPC);
-      const token = new Contract(tokenAddress, ERC20ABI, readProvider);
+      const token = new Contract(tokenAddress, ERC20ABI, provider);
       return Number(await token.decimals());
     } catch {
       return 18;
@@ -82,8 +81,8 @@ const useLocker = (provider: ProviderLike) => {
     }
   };
 
-  const withdrawFromLock = async (signer: Signer, lockId: number, to: string, amount: string) => {
-    if (!lockerContract) throw new Error("Locker contract not initialized");
+  const withdrawFromLock = async (lockId: number, to: string, amount: string) => {
+    if (!lockerContract || !signer) throw new Error("Contract or signer not initialized");
     const lock = await lockerContract.getLock(lockId);
     const decimals = await getTokenDecimals(lock.token);
     const writeContract = new Contract(FSKMegaLockerAddress, FSKMegaLockerABI, signer);
@@ -120,8 +119,8 @@ const useLocker = (provider: ProviderLike) => {
     }
   };
 
-  const claimVesting = async (signer: Signer, vestId: number) => {
-    if (!lockerContract) throw new Error("Locker contract not initialized");
+  const claimVesting = async (vestId: number) => {
+    if (!lockerContract || !signer) throw new Error("Contract or signer not initialized");
     const writeContract = new Contract(FSKMegaLockerAddress, FSKMegaLockerABI, signer);
     const tx = await writeContract.withdrawFromVesting(vestId);
     return tx.wait();
@@ -129,11 +128,9 @@ const useLocker = (provider: ProviderLike) => {
 
   return {
     lockerContract,
-    // Locks
     getOwnerLocks,
     getLock,
     withdrawFromLock,
-    // Vestings
     getBeneficiaryVestings,
     getVesting,
     claimVesting,
