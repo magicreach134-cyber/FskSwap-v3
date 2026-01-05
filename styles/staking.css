@@ -1,214 +1,165 @@
-/* staking.css */
-
-/* ---------- ROOT VARIABLES ---------- */
-:root {
-  --bg-color: #f5f6fa;
-  --text-color: #1a1a1a;
-  --card-bg: #fff;
-  --primary-color: #4f46e5;
-  --stake-color: #10b981;
-  --unstake-color: #ef4444;
-  --claim-color: #f59e0b;
-  --hover-primary: #3730a3;
-  --hover-stake: #059669;
-  --hover-unstake: #b91c1c;
-  --hover-claim: #b45309;
-}
-
-body.dark {
-  --bg-color: #121212;
-  --text-color: #f5f5f5;
-  --card-bg: #1e1e1e;
-  --primary-color: #6366f1;
-  --stake-color: #34d399;
-  --unstake-color: #f87171;
-  --claim-color: #fbbf24;
-  --hover-primary: #4f46e5;
-  --hover-stake: #059669;
-  --hover-unstake: #b91c1c;
-  --hover-claim: #b45309;
-}
-
-/* ---------- PAGE CONTAINER ---------- */
+/* ====== Global Page Styles ====== */
 .farm-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-family: "Inter", sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-color);
+  font-family: 'Inter', sans-serif;
+  background: #f5f6fa;
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
+  color: #1e1e2f;
 }
 
-/* ---------- HEADER ---------- */
 .farm-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-body.dark .farm-header {
-  border-color: #333;
+  background: #2a2b3a;
+  color: #fff;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
 .farm-header .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .farm-header .logo img {
   height: 40px;
-  width: 40px;
 }
 
-.farm-header .logo span {
-  font-size: 1.25rem;
-  font-weight: 700;
+.farm-header .header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
-.farm-header .header-right button {
-  background-color: var(--primary-color);
+.farm-header button {
+  background: #ff6b81;
   color: #fff;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
   border: none;
-  cursor: pointer;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
   font-weight: 600;
-  margin-right: 1rem;
-  transition: background 0.2s;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
 }
 
-.farm-header .header-right button:hover {
-  background-color: var(--hover-primary);
+.farm-header button:hover {
+  background: #ff4b61;
 }
 
-/* ---------- MAIN ---------- */
+.farm-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
 .farm-container h2 {
-  font-size: 1.75rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 2rem;
   font-weight: 700;
-  margin-bottom: 1rem;
 }
 
-.farm-container p {
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
-  color: var(--text-color);
-}
-
-/* ---------- CLAIM ALL BUTTON ---------- */
-.claim-all-btn {
-  background-color: var(--claim-color);
-  color: var(--text-color);
-  padding: 0.5rem 1.25rem;
-  border-radius: 8px;
-  border: none;
-  font-weight: 600;
-  cursor: pointer;
-  margin-bottom: 1.5rem;
-  transition: background 0.2s;
-}
-
-.claim-all-btn:hover {
-  background-color: var(--hover-claim);
-}
-
-/* ---------- FARM CARDS ---------- */
+/* ====== Farm Card ====== */
 .farm-card {
-  background-color: var(--card-bg);
+  background: #fff;
+  border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s, background-color 0.3s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: all 0.3s ease-in-out;
 }
 
 .farm-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
 }
 
 .farm-card h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
 }
 
 .farm-card p {
-  margin-bottom: 0.5rem;
+  margin: 0.25rem 0;
   font-size: 0.95rem;
 }
 
-/* ---------- INPUTS ---------- */
-.farm-card input[type="number"] {
-  width: 100px;
-  padding: 0.35rem 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  margin-right: 0.5rem;
-  font-size: 0.9rem;
-}
-
-body.dark .farm-card input[type="number"] {
-  border-color: #555;
-  background-color: #222;
-  color: #fff;
-}
-
-/* ---------- FARM ACTION BUTTONS ---------- */
+/* ====== Farm Actions ====== */
 .farm-actions {
-  margin-top: 1rem;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.farm-actions input {
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  flex: 1 1 120px;
 }
 
 .farm-actions button {
-  flex: 1;
-  padding: 0.5rem 0;
+  flex: 1 1 100px;
+  background: #6c5ce7;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 0.75rem;
   border-radius: 8px;
   font-weight: 600;
-  border: none;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease-in-out;
 }
 
-.farm-actions button:nth-child(1) {
-  background-color: var(--stake-color);
-  color: #fff;
+.farm-actions button:hover {
+  background: #5a4cd1;
 }
 
-.farm-actions button:nth-child(1):hover {
-  background-color: var(--hover-stake);
+.farm-actions button:disabled {
+  background: #b2a6f7;
+  cursor: not-allowed;
 }
 
-.farm-actions button:nth-child(2) {
-  background-color: var(--unstake-color);
-  color: #fff;
-}
-
-.farm-actions button:nth-child(2):hover {
-  background-color: var(--hover-unstake);
-}
-
-.farm-actions button:nth-child(3) {
-  background-color: var(--claim-color);
-  color: #fff;
-}
-
-.farm-actions button:nth-child(3):hover {
-  background-color: var(--hover-claim);
-}
-
-/* ---------- RESPONSIVE ---------- */
+/* ====== Responsive ====== */
 @media (max-width: 768px) {
   .farm-header {
     flex-direction: column;
-    align-items: flex-start;
     gap: 1rem;
   }
 
   .farm-actions {
     flex-direction: column;
   }
+}
+
+/* ====== Loading Skeleton ====== */
+.skeleton {
+  background: linear-gradient(-90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 400% 400%;
+  animation: shimmer 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-text {
+  height: 16px;
+  width: 80%;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-input {
+  height: 36px;
+  width: 100px;
+}
+
+.skeleton-button {
+  height: 36px;
+  width: 100px;
 }
