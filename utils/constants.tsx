@@ -2,6 +2,8 @@
    FskSwap – Global Constants (Production-Grade)
    Network: BNB Testnet
 ========================================================= */
+// Backward compatibility for existing hooks
+export const BNB_TESTNET_RPC = DEFAULT_BNB_RPC;
 
 import { getAddress, type AddressLike } from "ethers";
 
