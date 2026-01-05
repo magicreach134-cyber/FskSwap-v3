@@ -1,173 +1,196 @@
- /* style/staking.css */
+/* staking.css */
 
-/* Page Container */
-.staking-page {
-  font-family: 'Inter', sans-serif;
-  background-color: #f9f9f9;
-  min-height: 100vh;
-  color: #111;
-  padding-bottom: 2rem;
+/* ---------- PAGE CONTAINER ---------- */
+.farm-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: "Inter", sans-serif;
+  background-color: var(--bg-color, #f5f6fa);
+  color: var(--text-color, #1a1a1a);
 }
 
-/* Header */
-.staking-header {
+/* ---------- HEADER ---------- */
+.farm-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background-color: #fff;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e0e0e0;
 }
 
-.staking-header .logo {
+.farm-header .logo {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
-.staking-header .logo img {
-  width: 40px;
+.farm-header .logo img {
   height: 40px;
-  object-fit: contain;
+  width: 40px;
 }
 
-.staking-header nav a {
-  margin: 0 1rem;
-  text-decoration: none;
-  color: #111;
-  font-weight: 500;
-  transition: color 0.2s ease-in-out;
-}
-
-.staking-header nav a:hover {
-  color: #fbbf24; /* Yellow gold hover */
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-/* Staking Container */
-.staking-container {
-  max-width: 900px;
-  margin: 2rem auto;
-  padding: 0 1rem;
-}
-
-.staking-container h2 {
-  font-size: 2rem;
-  margin-bottom: 1.5rem;
-}
-
-/* Staking Card */
-.staking-card {
-  background-color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  padding: 2rem;
-  margin-bottom: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.staking-card h3 {
+.farm-header .logo span {
   font-size: 1.25rem;
-  margin-bottom: 0.5rem;
+  font-weight: 700;
 }
 
-.staking-card p {
-  margin: 0.3rem 0;
+.farm-header .header-right button {
+  background-color: var(--primary-color, #4f46e5);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 1rem;
+  transition: background 0.2s;
+}
+
+.farm-header .header-right button:hover {
+  background-color: #3730a3;
+}
+
+/* ---------- MAIN ---------- */
+.farm-container h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.farm-container p {
+  margin-bottom: 1rem;
   font-size: 0.95rem;
+  color: #555;
 }
 
-.staking-card .input-group {
+/* ---------- CLAIM ALL BUTTON ---------- */
+.claim-all-btn {
+  background-color: #facc15;
+  color: #1a1a1a;
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  transition: background 0.2s;
+}
+
+.claim-all-btn:hover {
+  background-color: #eab308;
+}
+
+/* ---------- FARM CARDS ---------- */
+.farm-card {
+  background-color: #fff;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+}
+
+.farm-card:hover {
+  transform: translateY(-2px);
+}
+
+.farm-card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.farm-card p {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+/* ---------- INPUTS ---------- */
+.farm-card input[type="number"] {
+  width: 100px;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  margin-right: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* ---------- MAX BUTTON ---------- */
+.farm-card button {
+  margin-right: 0.5rem;
+}
+
+.farm-card button:first-of-type {
+  background-color: #10b981;
+  color: #fff;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.farm-card button:first-of-type:hover {
+  background-color: #059669;
+}
+
+/* ---------- ACTION BUTTONS ---------- */
+.farm-actions {
+  margin-top: 1rem;
   display: flex;
   gap: 0.5rem;
-  flex-wrap: wrap;
 }
 
-.staking-card input {
-  padding: 0.6rem 1rem;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  font-size: 0.95rem;
+.farm-actions button {
   flex: 1;
-}
-
-.staking-card button {
-  padding: 0.6rem 1.2rem;
-  background-color: #fbbf24;
-  border: none;
+  padding: 0.5rem 0;
   border-radius: 8px;
-  color: #111;
-  font-weight: 500;
+  font-weight: 600;
+  border: none;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background 0.2s;
 }
 
-.staking-card button:hover {
-  background-color: #e0a800;
-}
-
-/* Rewards Table */
-.rewards-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
-}
-
-.rewards-table th,
-.rewards-table td {
-  border: 1px solid #ddd;
-  padding: 0.75rem;
-  text-align: center;
-  font-size: 0.95rem;
-}
-
-.rewards-table th {
-  background-color: #fef3c7;
-  font-weight: 500;
-}
-
-/* Claim Button */
-.claim-btn {
-  background-color: #f87171; /* Red-ish for claim */
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 8px;
+.farm-actions button:nth-child(1) {
+  background-color: #4f46e5; /* Stake */
   color: #fff;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
 }
 
-.claim-btn:hover {
-  background-color: #dc2626;
+.farm-actions button:nth-child(1):hover {
+  background-color: #3730a3;
 }
 
-/* Responsive */
+.farm-actions button:nth-child(2) {
+  background-color: #ef4444; /* Unstake */
+  color: #fff;
+}
+
+.farm-actions button:nth-child(2):hover {
+  background-color: #b91c1c;
+}
+
+.farm-actions button:nth-child(3) {
+  background-color: #f59e0b; /* Claim */
+  color: #fff;
+}
+
+.farm-actions button:nth-child(3):hover {
+  background-color: #b45309;
+}
+
+/* ---------- RESPONSIVE ---------- */
 @media (max-width: 768px) {
-  .staking-header nav {
-    display: none;
-  }
-
-  .staking-card {
-    padding: 1rem;
-  }
-
-  .staking-card .input-group {
+  .farm-header {
     flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
   }
 
-  .rewards-table th,
-  .rewards-table td {
-    font-size: 0.85rem;
-    padding: 0.5rem;
+  .farm-actions {
+    flex-direction: column;
   }
 }
