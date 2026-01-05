@@ -1,13 +1,42 @@
 /* staking.css */
 
+/* ---------- ROOT VARIABLES ---------- */
+:root {
+  --bg-color: #f5f6fa;
+  --text-color: #1a1a1a;
+  --card-bg: #fff;
+  --primary-color: #4f46e5;
+  --stake-color: #10b981;
+  --unstake-color: #ef4444;
+  --claim-color: #f59e0b;
+  --hover-primary: #3730a3;
+  --hover-stake: #059669;
+  --hover-unstake: #b91c1c;
+  --hover-claim: #b45309;
+}
+
+body.dark {
+  --bg-color: #121212;
+  --text-color: #f5f5f5;
+  --card-bg: #1e1e1e;
+  --primary-color: #6366f1;
+  --stake-color: #34d399;
+  --unstake-color: #f87171;
+  --claim-color: #fbbf24;
+  --hover-primary: #4f46e5;
+  --hover-stake: #059669;
+  --hover-unstake: #b91c1c;
+  --hover-claim: #b45309;
+}
+
 /* ---------- PAGE CONTAINER ---------- */
 .farm-page {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
   font-family: "Inter", sans-serif;
-  background-color: var(--bg-color, #f5f6fa);
-  color: var(--text-color, #1a1a1a);
+  background-color: var(--bg-color);
+  color: var(--text-color);
 }
 
 /* ---------- HEADER ---------- */
@@ -18,6 +47,10 @@
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid #e0e0e0;
+}
+
+body.dark .farm-header {
+  border-color: #333;
 }
 
 .farm-header .logo {
@@ -37,7 +70,7 @@
 }
 
 .farm-header .header-right button {
-  background-color: var(--primary-color, #4f46e5);
+  background-color: var(--primary-color);
   color: #fff;
   padding: 0.5rem 1rem;
   border-radius: 8px;
@@ -49,7 +82,7 @@
 }
 
 .farm-header .header-right button:hover {
-  background-color: #3730a3;
+  background-color: var(--hover-primary);
 }
 
 /* ---------- MAIN ---------- */
@@ -62,13 +95,13 @@
 .farm-container p {
   margin-bottom: 1rem;
   font-size: 0.95rem;
-  color: #555;
+  color: var(--text-color);
 }
 
 /* ---------- CLAIM ALL BUTTON ---------- */
 .claim-all-btn {
-  background-color: #facc15;
-  color: #1a1a1a;
+  background-color: var(--claim-color);
+  color: var(--text-color);
   padding: 0.5rem 1.25rem;
   border-radius: 8px;
   border: none;
@@ -79,17 +112,17 @@
 }
 
 .claim-all-btn:hover {
-  background-color: #eab308;
+  background-color: var(--hover-claim);
 }
 
 /* ---------- FARM CARDS ---------- */
 .farm-card {
-  background-color: #fff;
+  background-color: var(--card-bg);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   border-radius: 12px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s;
+  transition: transform 0.2s, background-color 0.3s;
 }
 
 .farm-card:hover {
@@ -105,7 +138,6 @@
 .farm-card p {
   margin-bottom: 0.5rem;
   font-size: 0.95rem;
-  color: #333;
 }
 
 /* ---------- INPUTS ---------- */
@@ -118,27 +150,13 @@
   font-size: 0.9rem;
 }
 
-/* ---------- MAX BUTTON ---------- */
-.farm-card button {
-  margin-right: 0.5rem;
-}
-
-.farm-card button:first-of-type {
-  background-color: #10b981;
+body.dark .farm-card input[type="number"] {
+  border-color: #555;
+  background-color: #222;
   color: #fff;
-  padding: 0.35rem 0.75rem;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s;
 }
 
-.farm-card button:first-of-type:hover {
-  background-color: #059669;
-}
-
-/* ---------- ACTION BUTTONS ---------- */
+/* ---------- FARM ACTION BUTTONS ---------- */
 .farm-actions {
   margin-top: 1rem;
   display: flex;
@@ -156,30 +174,30 @@
 }
 
 .farm-actions button:nth-child(1) {
-  background-color: #4f46e5; /* Stake */
+  background-color: var(--stake-color);
   color: #fff;
 }
 
 .farm-actions button:nth-child(1):hover {
-  background-color: #3730a3;
+  background-color: var(--hover-stake);
 }
 
 .farm-actions button:nth-child(2) {
-  background-color: #ef4444; /* Unstake */
+  background-color: var(--unstake-color);
   color: #fff;
 }
 
 .farm-actions button:nth-child(2):hover {
-  background-color: #b91c1c;
+  background-color: var(--hover-unstake);
 }
 
 .farm-actions button:nth-child(3) {
-  background-color: #f59e0b; /* Claim */
+  background-color: var(--claim-color);
   color: #fff;
 }
 
 .farm-actions button:nth-child(3):hover {
-  background-color: #b45309;
+  background-color: var(--hover-claim);
 }
 
 /* ---------- RESPONSIVE ---------- */
