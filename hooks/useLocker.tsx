@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Contract, type Signer, formatUnits, parseUnits } from "ethers";
-import { FSKMegaLockerAddress, FSKMegaLockerABI, DEFAULT_BNB_RPC } from "../utils/constants";
-import ERC20ABI from "../utils/abis/ERC20.json";
+import {
+  FSKMegaLockerAddress,
+  FSKMegaLockerABI,
+  DEFAULT_BNB_RPC,
+} from "@/utils/constants"; // fixed path
+import ERC20ABI from "@/utils/abis/ERC20.json"; // ensure correct relative path
 
 export interface Lock {
   lockerOwner: string;
@@ -23,7 +27,7 @@ export interface Vesting {
 }
 
 interface UseLockerProps {
-  provider?: any; // wagmi provider or ethers provider
+  provider?: any; // ethers provider or wagmi provider
   signer?: Signer | null;
 }
 
