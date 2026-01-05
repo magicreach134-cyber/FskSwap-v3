@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BrowserProvider, JsonRpcSigner } from "ethers";
+import { useAccount, useWalletClient, usePublicClient } from "wagmi";
+import type { Address } from "viem";
+
 import useLocker, { Lock, Vesting } from "@/hooks/useLocker";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import "@/styles/locker.css";
@@ -15,29 +17,9 @@ const AUTO_REFRESH_INTERVAL = 5000; // 5 seconds
 
 const LockerPage = () => {
   /* ---------- WALLET STATE ---------- */
-  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
-  const [account, setAccount] = useState<string | null>(null);
-
-  /* ---------- INIT WALLET ---------- */
-  useEffect(() => {
-    if (!window.ethereum) return;
-
-    const initWallet = async () => {
-      try {
-        const provider = new BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-
-        setSigner(signer);
-        setAccount(address);
-      } catch (err) {
-        console.error("Wallet init failed:", err);
-        setAccount(null);
-      }
-    };
-
-    initWallet();
-  }, []);
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
 
   /* ---------- LOCKER HOOK ---------- */
   const {
@@ -48,7 +30,7 @@ const LockerPage = () => {
     getVesting,
     withdrawFromLock,
     claimVesting,
-  } = useLocker({ provider: signer, signer });
+  } = useLocker({ provider: publicClient, signer: walletClient });
 
   const [locks, setLocks] = useState<Lock[]>([]);
   const [vestings, setVestings] = useState<Vesting[]>([]);
@@ -57,26 +39,26 @@ const LockerPage = () => {
 
   /* ---------- LOAD LOCKS & VESTINGS ---------- */
   const loadLockerData = async () => {
-    if (!lockerContract || !account) return;
+    if (!lockerContract || !address) return;
 
     setLoading(true);
     try {
       // Load locks
-      const lockIds = await getOwnerLocks(account);
+      const lockIds = await getOwnerLocks(address as Address);
       const lockData = await Promise.all(
         lockIds.map(async (id) => {
           const lock = await getLock(id);
-          return lock ? lock : null;
+          return lock ?? null;
         })
       );
       setLocks(lockData.filter(Boolean) as Lock[]);
 
       // Load vestings
-      const vestIds = await getBeneficiaryVestings(account);
+      const vestIds = await getBeneficiaryVestings(address as Address);
       const vestData = await Promise.all(
         vestIds.map(async (id) => {
           const vest = await getVesting(id);
-          return vest ? vest : null;
+          return vest ?? null;
         })
       );
       setVestings(vestData.filter(Boolean) as Vesting[]);
@@ -88,27 +70,27 @@ const LockerPage = () => {
 
   useEffect(() => {
     loadLockerData();
-  }, [lockerContract, account]);
+  }, [lockerContract, address]);
 
   /* ---------- AUTO REFRESH ---------- */
   useEffect(() => {
-    if (!lockerContract || !account) return;
+    if (!lockerContract || !address) return;
 
     const interval = setInterval(() => {
       loadLockerData();
     }, AUTO_REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [lockerContract, account]);
+  }, [lockerContract, address]);
 
   /* ---------- ACTIONS ---------- */
   const handleWithdrawLock = async (lock: Lock) => {
-    if (!account || !signer) return;
+    if (!address || !walletClient) return;
 
     setLoadingMap((p) => ({ ...p, locks: { ...p.locks, [lock.id]: true } }));
 
     try {
-      await withdrawFromLock(lock.id, account, lock.amount);
+      await withdrawFromLock(lock.id, address as Address, lock.amount);
       const updated = await getLock(lock.id);
       if (updated) {
         setLocks((prev) => prev.map((l) => (l.id === lock.id ? updated : l)));
@@ -121,7 +103,7 @@ const LockerPage = () => {
   };
 
   const handleClaimVesting = async (vest: Vesting) => {
-    if (!signer) return;
+    if (!walletClient) return;
 
     setLoadingMap((p) => ({ ...p, vestings: { ...p.vestings, [vest.id]: true } }));
 
@@ -146,7 +128,7 @@ const LockerPage = () => {
         <ThemeSwitch />
       </header>
 
-      {!account && <p>Please connect your wallet to view locks and vestings.</p>}
+      {!isConnected && <p>Please connect your wallet to view locks and vestings.</p>}
       {loading && <p className="locker-loading">Loading data...</p>}
 
       <div className="locker-container">
